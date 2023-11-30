@@ -1,0 +1,244 @@
+[build-system]
+requires = [
+    "setuptools>=64",
+    "setuptools_scm[toml]>=8",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[options]
+packages = { find = { where = "src", exclude = ["tests"] } }
+include_package_data = true
+package_dir = { "" = "src" }
+zip_safe = false
+
+[tool.aliases]
+build = "bdist_wheel"
+release = "build upload"
+
+[tool.bdist_wheel]
+universal = 0
+
+[tool.devpi.upload]
+no-vcs = 1
+formats = ["sdist", "bdist_wheel"]
+
+[project]
+name = "kiara_plugin.tropy"
+description = "Modules and utils for the tropy mini-app."
+authors = [
+    {name = "Markus Binsteiner", email = "markus@frkl.dev"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["kiara"]
+license = {text = "MPL-2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
+]
+dependencies = [
+    "kiara>=0.5.1,<0.6.0",
+    "kiara_plugin.core_types>=0.5.0,<0.6.0",
+    "kiara_plugin.network_analysis>=0.5.0,<0.6.0",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev_documentation = [
+    "kiara[dev_documentation]"
+]
+dev_testing = [
+    "kiara[dev_testing]",
+]
+dev_utils = [
+    "kiara[dev_utils]",
+]
+dev_all = [
+    "kiara[dev_all]"
+]
+streamlit = [
+    "kiara_plugin.streamlit"
+]
+
+[project.entry-points."kiara.plugin"]
+tropy = "kiara_plugin.tropy"
+
+[project.entry-points."kiara.data_types"]
+tropy = "kiara_plugin.tropy:find_data_types"
+
+[project.entry-points."kiara.model_classes"]
+tropy = "kiara_plugin.tropy:find_model_classes"
+
+[project.entry-points."kiara.modules"]
+tropy = "kiara_plugin.tropy:find_modules"
+
+[project.entry-points."kiara.pipelines"]
+tropy = "kiara_plugin.tropy:find_pipelines"
+
+
+[project.urls]
+homepage = "https://github.com/DHARPA-Project/kiara_plugin.tropy"
+documentation = "https://DHARPA-Project.github.io/kiara_plugin.tropy"
+repository = "https://github.com/DHARPA-Project/kiara_plugin.tropy"
+
+[tool.black]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | external
+)/
+'''
+
+[tool.setuptools_scm]
+write_to = "src/kiara_plugin/tropy/version.txt"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src"
+]
+addopts = "--verbose"
+norecursedirs = [
+    "dist",
+    "build",
+    ".tox"
+]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["kiara_plugin.tropy"]
+relative_files = true
+
+[tool.coverage.paths]
+source = [
+    "src/",
+    "*/site-packages/"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self\\.debug",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "if typing.TYPE_CHECKING:",
+]
+
+[tool.ruff]
+line-length = 88
+
+src = ["src", "tests"]
+
+select = [
+    "E",
+    "F",
+    "RUF",
+    "I001",
+    "YTT",
+    "S",
+    "C4",
+    "T10",
+    "ISC",
+    "ICN",
+    "T20",
+    "Q",
+    "TID",
+    "PD",
+    "PLC",
+    "PLE",
+    "PLR",
+    "PLW",
+    "PIE",
+]
+ignore = ["E501", "S101", "SIM118", "SIM108", "PLR2004", "PLR0913", "S110", "PLR0912", "PLR0915", "PIE810"]
+
+fix = true
+fixable = ["E", "F", "RUF100", "I001", "Q"]
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+per-file-ignores = { }
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Assume Python 3.10.
+target-version = "py310"
+
+[tool.ruff.mccabe]
+# Unlike Flake8, default to a complexity level of 10.
+max-complexity = 10
+
+[tool.ruff.isort]
+known-first-party = ["kiara", "kiara_plugin"]
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.pyright]
+include = ["src"]
+exclude = ["**/__pycache__"]
+ignore = []
+
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+executionEnvironments = [
+]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+mypy_path = "src"
+namespace_packages = false
+plugins = [
+    "pydantic.mypy"
+]
+
+
+# mypy per-module options:
+[[tool.mypy.overrides]]
+module = ["placholder.dummy.*"]
+ignore_missing_imports = true
