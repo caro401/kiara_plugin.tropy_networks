@@ -10,12 +10,11 @@ sub-class a pydantic BaseModel or implement custom base classes.
 """
 from typing import (
     TYPE_CHECKING,
+    Any,
     ClassVar,
-    Dict,
     Iterable,
-    List,
     Literal,
-    Type,
+    TypeVar,
     Union,
 )
 
@@ -24,24 +23,23 @@ from pydantic import BaseModel, Field
 from kiara.exceptions import KiaraException
 from kiara.models.values.value import Value
 from kiara.models.values.value_metadata import ValueMetadata
-from kiara_plugin.network_analysis.defaults import (
-    COUNT_IDX_DIRECTED_COLUMN_NAME,
-    COUNT_IDX_UNDIRECTED_COLUMN_NAME,
+from kiara_plugin.tabular.models.table import KiaraTable
+from kiara_plugin.tabular.models.tables import KiaraTables
+from kiara_plugin.tropy.defaults import (
+    DEFAULT_NODE_ID_COLUMN_NAME,
+    DEFAULT_SOURCE_COLUMN_NAME,
+    DEFAULT_TARGET_COLUMN_NAME,
     EDGES_TABLE_NAME,
-    LABEL_COLUMN_NAME,
-    NODE_ID_COLUMN_NAME,
     NODES_TABLE_NAME,
-    SOURCE_COLUMN_NAME,
-    TARGET_COLUMN_NAME,
     GraphType,
 )
-from kiara_plugin.tabular.models.tables import KiaraTables
 
 if TYPE_CHECKING:
     import networkx as nx
     import pyarrow as pa
 
-    from kiara_plugin.tabular.models.table import KiaraTable
+
+NETWORKX_GRAPH_TYPE = TypeVar("NETWORKX_GRAPH_TYPE", bound="nx.Graph")
 
 
 class NetworkGraph(KiaraTables):
@@ -50,33 +48,150 @@ class NetworkGraph(KiaraTables):
     _kiara_model_id: ClassVar = "instance.network_graph"
 
     @classmethod
-    def create_from_networkx_graph(
+    def create_from_kiara_tables(
         cls,
-        graph: "nx.Graph",
-        label_attr_name: Union[str, None] = None,
-        ignore_node_attributes: Union[Iterable[str], None] = None,
+        graph_type: GraphType,
+        tables: KiaraTables,
+        source_column_name: str = DEFAULT_SOURCE_COLUMN_NAME,
+        target_column_name: str = DEFAULT_TARGET_COLUMN_NAME,
+        node_id_column_name: str = DEFAULT_NODE_ID_COLUMN_NAME,
     ) -> "NetworkGraph":
-        """Create a `NetworkGraph` instance from a networkx Graph object.
+        if EDGES_TABLE_NAME not in tables.tables.keys():
+            raise KiaraException(
+                f"Can't import network data: no '{EDGES_TABLE_NAME}' table found"
+            )
 
-        Arguments:
-            graph: the networkx graph instance
-            label_attr_name: the name of the node attribute that contains the node label (if None, the node id is used as label)
-            ignore_node_attributes: a list of node attributes that should be ignored and not added to the table
+        if NODES_TABLE_NAME not in tables.tables.keys():
+            nodes_table: Union[KiaraTable, None] = None
+        else:
+            nodes_table = tables.tables[NODES_TABLE_NAME]
 
-        """
-
-        # TODO: should we also index nodes/edges attributes?
-
-        nodes_table, node_id_map = extract_networkx_nodes_as_table(
-            graph=graph,
-            label_attr_name=label_attr_name,
-            ignore_attributes=ignore_node_attributes,
+        return cls.create_from_tables(
+            graph_type=graph_type,
+            edges_table=tables.tables[EDGES_TABLE_NAME],
+            nodes_table=nodes_table,
+            source_column_name=source_column_name,
+            target_column_name=target_column_name,
+            node_id_column_name=node_id_column_name,
         )
 
-        edges_table = extract_networkx_edges_as_table(graph, node_id_map)
+    @classmethod
+    def create_from_tables(
+        cls,
+        graph_type: GraphType,
+        edges_table: Any,
+        nodes_table: Union[Any, None] = None,
+        source_column_name: str = DEFAULT_SOURCE_COLUMN_NAME,
+        target_column_name: str = DEFAULT_TARGET_COLUMN_NAME,
+        node_id_column_name: str = DEFAULT_NODE_ID_COLUMN_NAME,
+    ) -> "NetworkGraph":
 
-        network_graph = NetworkGraph()
-        return network_graph
+        edges_table = KiaraTable.create_table(edges_table)
+        nodes_table = KiaraTable.create_table(nodes_table) if nodes_table else None
+
+        edges_columns = edges_table.column_names
+        if source_column_name not in edges_columns:
+            raise Exception(
+                f"Invalid 'network_data' value: 'edges' table does not contain a '{source_column_name}' column. Available columns: {', '.join(edges_columns)}."
+            )
+        if target_column_name not in edges_columns:
+            raise Exception(
+                f"Invalid 'network_data' value: 'edges' table does not contain a '{target_column_name}' column. Available columns: {', '.join(edges_columns)}."
+            )
+
+        if not nodes_table:
+            import duckdb
+
+            edges: pa.Table = edges_table.arrow_table  # noqa
+
+            sql_query = f"""
+            SELECT DISTINCT combined.{node_id_column_name}
+            FROM (
+                 SELECT {source_column_name} AS {node_id_column_name} FROM edges
+                 UNION
+                 SELECT {target_column_name} AS {node_id_column_name} FROM edges
+            ) AS combined
+            ORDER BY combined.{node_id_column_name}
+            """
+
+            con = duckdb.connect()
+            result = con.execute(sql_query)
+            nodes_table_arrow = result.arrow()
+            nodes_table = KiaraTable.create_table(nodes_table_arrow)
+        else:
+            nodes_columns = nodes_table.column_names
+            if node_id_column_name not in nodes_columns:
+                raise Exception(
+                    f"Invalid 'network_data' value: 'nodes' table does not contain a '{node_id_column_name}' column. Available columns: {', '.join(nodes_columns)}."
+                )
+
+        graph = NetworkGraph(
+            graph_type=graph_type.value,
+            source_column_name=source_column_name,
+            target_column_name=target_column_name,
+            node_id_column_name=node_id_column_name,
+            tables={EDGES_TABLE_NAME: edges_table, NODES_TABLE_NAME: nodes_table},
+        )
+
+        return graph
+
+    @classmethod
+    def create_from_networkx_graph(
+        cls,
+        graph: NETWORKX_GRAPH_TYPE,
+        source_column_name: str = DEFAULT_SOURCE_COLUMN_NAME,
+        target_column_name: str = DEFAULT_TARGET_COLUMN_NAME,
+        node_id_column_name: str = DEFAULT_NODE_ID_COLUMN_NAME,
+    ) -> "NetworkGraph":
+        """Create a `NetworkGraph` instance from a networkx Graph object."""
+
+        import networkx as nx
+        import pandas as pd
+
+        if isinstance(graph, nx.MultiDiGraph):
+            graph_type = GraphType.DIRECTED_MULTI
+        elif isinstance(graph, nx.MultiGraph):
+            graph_type = GraphType.UNDIRECTED_MULTI
+        elif isinstance(graph, nx.DiGraph):
+            graph_type = GraphType.DIRECTED
+        elif isinstance(graph, nx.Graph):
+            graph_type = GraphType.UNDIRECTED
+        else:
+            raise KiaraException(f"Invalid graph type: {type(graph)}")
+
+        node_dict = dict(graph.nodes(data=True))
+        nodes_data = pd.DataFrame.from_dict(node_dict, orient="index")
+        nodes_data = nodes_data.reset_index()
+        nodes_data = nodes_data.rename(columns={"index": node_id_column_name})
+        nodes_table = KiaraTable.create_table(nodes_data)
+
+        edges_df = nx.to_pandas_edgelist(
+            graph, source=source_column_name, target=target_column_name
+        )
+        edges_table = KiaraTable.create_table(edges_df)
+
+        return cls.create_from_tables(
+            graph_type=graph_type,
+            edges_table=edges_table,
+            nodes_table=nodes_table,
+            source_column_name="source",
+            target_column_name="target",
+        )
+
+    source_column_name: str = Field(
+        description="The name of the column in the edges table that contains the source node id."
+    )
+    target_column_name: str = Field(
+        description="The name of the column in the edges table that contains the target node id."
+    )
+    node_id_column_name: str = Field(
+        description="The name of the column in the nodes table that contains the node id."
+    )
+    graph_type: Literal[
+        "directed", "undirected", "directed_multi", "undirected_multi"
+    ] = Field(
+        description="The type of the graph (directed, undirected, directed_multi, undirected_multi)."
+    )
 
     @property
     def edges(self) -> "KiaraTable":
@@ -102,259 +217,55 @@ class NetworkGraph(KiaraTables):
 
         return self.edges.num_rows
 
-    def query_edges(
-        self, sql_query: str, relation_name: str = EDGES_TABLE_NAME
-    ) -> "pa.Table":
-        """Query the edges table using SQL.
+    def query(self, sql_query: str) -> "pa.Table":
+        """Query the edges and nodes tables using SQL.
 
-        The table name to use in the query defaults to 'edges', but can be changed using the 'relation_name' argument.
+        The table names to use in the query are 'edges' and 'nodes'.
         """
 
         import duckdb
 
         con = duckdb.connect()
-        edges = self.edges.arrow_table  # noqa: F841
-        if relation_name != EDGES_TABLE_NAME:
-            sql_query = sql_query.replace(relation_name, EDGES_TABLE_NAME)
-
-        result = con.execute(sql_query)
-        return result.arrow()
-
-    def query_nodes(
-        self, sql_query: str, relation_name: str = NODES_TABLE_NAME
-    ) -> "pa.Table":
-        """Query the nodes table using SQL.
-
-        The table name to use in the query defaults to 'nodes', but can be changed using the 'relation_name' argument.
-        """
-
-        import duckdb
-
-        con = duckdb.connect()
+        edges = self.edges.arrow_table  # noqa
         nodes = self.nodes.arrow_table  # noqa
-        if relation_name != NODES_TABLE_NAME:
-            sql_query = sql_query.replace(relation_name, NODES_TABLE_NAME)
 
         result = con.execute(sql_query)
         return result.arrow()
-
-    def _calculate_node_attributes(
-        self, incl_node_attributes: Union[bool, str, Iterable[str]]
-    ) -> List[str]:
-        """Calculate the node attributes that should be included in the output."""
-
-        if incl_node_attributes is False:
-            node_attr_names: List[str] = [NODE_ID_COLUMN_NAME, LABEL_COLUMN_NAME]
-        else:
-            all_node_attr_names: List[str] = self.nodes.column_names  # type: ignore
-            if incl_node_attributes is True:
-                node_attr_names = [NODE_ID_COLUMN_NAME]
-                node_attr_names.extend((x for x in all_node_attr_names if x != NODE_ID_COLUMN_NAME))  # type: ignore
-            elif isinstance(incl_node_attributes, str):
-                if incl_node_attributes not in all_node_attr_names:
-                    raise KiaraException(
-                        f"Can't include node attribute {incl_node_attributes}: not part of the available attributes ({', '.join(all_node_attr_names)})."
-                    )
-                node_attr_names = [NODE_ID_COLUMN_NAME, incl_node_attributes]
-            else:
-                node_attr_names = [NODE_ID_COLUMN_NAME]
-                for attr_name in incl_node_attributes:
-                    if incl_node_attributes not in all_node_attr_names:
-                        raise KiaraException(
-                            f"Can't include node attribute {incl_node_attributes}: not part of the available attributes ({', '.join(all_node_attr_names)})."
-                        )
-                    node_attr_names.append(attr_name)  # type: ignore
-
-        return node_attr_names
-
-    def _calculate_edge_attributes(
-        self, incl_edge_attributes: Union[bool, str, Iterable[str]]
-    ) -> List[str]:
-        """Calculate the edge attributes that should be included in the output."""
-
-        if incl_edge_attributes is False:
-            edge_attr_names: List[str] = [SOURCE_COLUMN_NAME, TARGET_COLUMN_NAME]
-        else:
-            all_edge_attr_names: List[str] = self.edges.column_names  # type: ignore
-            if incl_edge_attributes is True:
-                edge_attr_names = [SOURCE_COLUMN_NAME, TARGET_COLUMN_NAME]
-                edge_attr_names.extend(
-                    (
-                        x
-                        for x in all_edge_attr_names
-                        if x not in (SOURCE_COLUMN_NAME, TARGET_COLUMN_NAME)
-                    )
-                )  # type: ignore
-            elif isinstance(incl_edge_attributes, str):
-                if incl_edge_attributes not in all_edge_attr_names:
-                    raise KiaraException(
-                        f"Can't include edge attribute {incl_edge_attributes}: not part of the available attributes ({', '.join(all_edge_attr_names)})."
-                    )
-                edge_attr_names = [
-                    SOURCE_COLUMN_NAME,
-                    TARGET_COLUMN_NAME,
-                    incl_edge_attributes,
-                ]
-            else:
-                edge_attr_names = [SOURCE_COLUMN_NAME, TARGET_COLUMN_NAME]
-                for attr_name in incl_edge_attributes:
-                    if incl_edge_attributes not in all_edge_attr_names:
-                        raise KiaraException(
-                            f"Can't include edge attribute {incl_edge_attributes}: not part of the available attributes ({', '.join(all_edge_attr_names)})."
-                        )
-                    edge_attr_names.append(attr_name)  # type: ignore
-
-        return edge_attr_names
-
-    def retrieve_graph_data(
-        self,
-        nodes_callback: Union[NodesCallback, None] = None,
-        edges_callback: Union[EdgesCallback, None] = None,
-        incl_node_attributes: Union[bool, str, Iterable[str]] = False,
-        incl_edge_attributes: Union[bool, str, Iterable[str]] = False,
-        omit_self_loops: bool = False,
-    ):
-        """Retrieve graph data from the sqlite database, and call the specified callbacks for each node and edge.
-
-        First the nodes will be processed, then the edges, if that does not suit your needs you can just use this method twice, and set the callback you don't need to None.
-
-        The nodes_callback will be called with the following arguments:
-            - node_id: the id of the node (int)
-            - if False: nothing else
-            - if True: all node attributes, in the order they are defined in the table schema
-            - if str: the value of the specified node attribute
-            - if Iterable[str]: the values of the specified node attributes, in the order they are specified
-
-        The edges_callback will be called with the following aruments:
-            - source_id: the id of the source node (int)
-            - target_id: the id of the target node (int)
-            - if False: nothing else
-            - if True: all edge attributes, in the order they are defined in the table schema
-            - if str: the value of the specified edge attribute
-            - if Iterable[str]: the values of the specified edge attributes, in the order they are specified
-
-        """
-
-        if nodes_callback is not None:
-            node_attr_names = self._calculate_node_attributes(incl_node_attributes)
-
-            nodes_df = self.nodes.to_polars_dataframe()
-            for row in nodes_df.select(*node_attr_names).rows(named=True):
-                nodes_callback(**row)  # type: ignore
-
-        if edges_callback is not None:
-            edge_attr_names = self._calculate_edge_attributes(incl_edge_attributes)
-
-            edges_df = self.edges.to_polars_dataframe()
-            for row in edges_df.select(*edge_attr_names).rows(named=True):
-                if (
-                    omit_self_loops
-                    and row[SOURCE_COLUMN_NAME] == row[TARGET_COLUMN_NAME]
-                ):
-                    continue
-                edges_callback(**row)  # type: ignore
 
     def as_networkx_graph(
         self,
-        graph_type: Type[NETWORKX_GRAPH_TYPE],
-        incl_node_attributes: Union[bool, str, Iterable[str]] = False,
-        incl_edge_attributes: Union[bool, str, Iterable[str]] = False,
-        omit_self_loops: bool = False,
-    ) -> NETWORKX_GRAPH_TYPE:
-        """Return the network data as a networkx graph object.
+    ) -> Union["nx.Graph", "nx.DiGraph", "nx.MultiGraph", "nx.MultiDiGraph"]:
+        """Return the network data as a networkx graph object."""
 
-        Arguments:
-            graph_type: the networkx Graph class to use
-            incl_node_attributes: if True, all node attributes are included in the graph, if False, none are, otherwise the specified attributes are included
-            incl_edge_attributes: if True, all edge attributes are included in the graph, if False, none are, otherwise the specified attributes are included
-            omit_self_loops: if False, self-loops are included in the graph, otherwise they are not added to the resulting graph (nodes that are only connected to themselves are still included)
+        if self.graph_type == GraphType.DIRECTED.value:
+            graph_type = nx.DiGraph
+        elif self.graph_type == GraphType.UNDIRECTED.value:
+            graph_type = nx.Graph
+        elif self.graph_type == GraphType.DIRECTED_MULTI.value:
+            graph_type = nx.MultiDiGraph
+        elif self.graph_type == GraphType.UNDIRECTED_MULTI.value:
+            graph_type = nx.MultiGraph
+        else:
+            raise KiaraException("Invalid graph type: {self.graph_type}")
 
-        """
+        graph = graph_type()
 
-        graph: NETWORKX_GRAPH_TYPE = graph_type()
+        # this is all fairly wateful in terms of memory, but since we are using networkx for everything
+        # now, it probably doesn't matter much
 
-        def add_node(_node_id: int, **attrs):
-            graph.add_node(_node_id, **attrs)
+        # Add nodes
+        nodes_df = self.nodes.arrow_table.to_pandas()
+        for idx, row in nodes_df.iterrows():
+            graph.add_node(row[self.node_id_column_name], **row.to_dict())
 
-        def add_edge(_source: int, _target: int, **attrs):
-            graph.add_edge(_source, _target, **attrs)
-
-        self.retrieve_graph_data(
-            nodes_callback=add_node,
-            edges_callback=add_edge,
-            incl_node_attributes=incl_node_attributes,
-            incl_edge_attributes=incl_edge_attributes,
-            omit_self_loops=omit_self_loops,
-        )
-
-        return graph
-
-    def as_rustworkx_graph(
-        self,
-        graph_type: Type[RUSTWORKX_GRAPH_TYPE],
-        multigraph: bool = False,
-        incl_node_attributes: Union[bool, str, Iterable[str]] = False,
-        incl_edge_attributes: Union[bool, str, Iterable[str]] = False,
-        omit_self_loops: bool = False,
-        attach_node_id_map: bool = False,
-    ) -> RUSTWORKX_GRAPH_TYPE:
-        """
-        Return the network data as a rustworkx graph object.
-
-        Be aware that the node ids in the rustworks graph might not match up with the values of the _node_id column of
-        the original network_data. The original _node_id will be set as an attribute (`_node_id`) on the nodes.
-
-        Arguments:
-            graph_type: the rustworkx Graph class to use
-            multigraph: if True, a Multi(Di)Graph is returned, otherwise a normal (Di)Graph
-            incl_node_attributes: if True, all node attributes are included in the graph, if False, none are, otherwise the specified attributes are included
-            incl_edge_attributes: if True, all edge attributes are included in the graph, if False, none are, otherwise the specified attributes are included
-            omit_self_loops: if False, self-loops are included in the graph, otherwise they are not added to the resulting graph (nodes that are only connected to themselves are still included)
-            attach_node_id_map: if True, add the dict describing how the rustworkx graph node ids (key) are mapped to the original node id of the network data, under the 'node_id_map' key in the graph's attributes
-        """
-
-        from bidict import bidict
-
-        graph = graph_type(multigraph=multigraph)
-
-        # rustworkx uses 0-based integer indexes, so we don't neeed to look up the node ids (unless we want to
-        # include node attributes)
-
-        self._calculate_node_attributes(incl_node_attributes)[1:]
-        self._calculate_edge_attributes(incl_edge_attributes)[2:]
-
-        # we can use a 'global' dict here because we know the nodes are processed before the edges
-        node_map: bidict = bidict()
-
-        def add_node(_node_id: int, **attrs):
-            data = {NODE_ID_COLUMN_NAME: _node_id}
-            data.update(attrs)
-
-            graph_node_id = graph.add_node(data)
-
-            node_map[graph_node_id] = _node_id
-            # if not _node_id == graph_node_id:
-            #     raise Exception("Internal error: node ids don't match")
-
-        def add_edge(_source: int, _target: int, **attrs):
-
-            source = node_map[_source]
-            target = node_map[_target]
-            if not attrs:
-                graph.add_edge(source, target, None)
-            else:
-                graph.add_edge(source, target, attrs)
-
-        self.retrieve_graph_data(
-            nodes_callback=add_node,
-            edges_callback=add_edge,
-            incl_node_attributes=incl_node_attributes,
-            incl_edge_attributes=incl_edge_attributes,
-            omit_self_loops=omit_self_loops,
-        )
-
-        if attach_node_id_map:
-            graph.attrs = {"node_id_map": node_map}  # type: ignore
+        # Add edges
+        edges_df = self.edges.arrow_table.to_pandas()
+        for idx, row in edges_df.iterrows():
+            graph.add_edge(
+                row[self.source_column_name],
+                row[self.target_column_name],
+                **row.to_dict(),
+            )
 
         return graph
 
@@ -374,82 +285,22 @@ class NetworkGraphProperties(ValueMetadata):
     _metadata_key: ClassVar[str] = "network_data"
 
     number_of_nodes: int = Field(description="Number of nodes in the network graph.")
-    properties_by_graph_type: Dict[  # type: ignore
-        Literal[
-            GraphType.DIRECTED.value,
-            GraphType.UNDIRECTED.value,
-            GraphType.UNDIRECTED_MULTI.value,
-            GraphType.DIRECTED_MULTI.value,
-        ],
-        GraphProperties,
-    ] = Field(description="Properties of the network data, by graph type.")
-    number_of_self_loops: int = Field(
-        description="Number of edges where source and target point to the same node."
-    )
+    num_edges: int = Field(description="Number of edges in the network graph.")
 
     @classmethod
     def retrieve_supported_data_types(cls) -> Iterable[str]:
-        return ["network_data"]
+        return ["network_graph"]
 
     @classmethod
     def create_value_metadata(cls, value: Value) -> "NetworkGraphProperties":
 
-        network_data: NetworkData = value.data
+        network_data: NetworkGraph = value.data
 
         num_rows = network_data.num_nodes
         num_edges = network_data.num_edges
 
-        # query_num_edges_directed = f"SELECT COUNT(*) FROM (SELECT DISTINCT {SOURCE_COLUMN_NAME}, {TARGET_COLUMN_NAME} FROM {EDGES_TABLE_NAME})"
-        query_num_edges_directed = f"SELECT COUNT(*) FROM {EDGES_TABLE_NAME} WHERE {COUNT_IDX_DIRECTED_COLUMN_NAME} = 1"
-
-        num_edges_directed_result = network_data.query_edges(query_num_edges_directed)
-        num_edges_directed = num_edges_directed_result.columns[0][0].as_py()
-
-        query_num_edges_undirected = f"SELECT COUNT(*) FROM {EDGES_TABLE_NAME} WHERE {COUNT_IDX_UNDIRECTED_COLUMN_NAME} = 1"
-        num_edges_undirected_result = network_data.query_edges(
-            query_num_edges_undirected
-        )
-        num_edges_undirected = num_edges_undirected_result.columns[0][0].as_py()
-
-        self_loop_query = f"SELECT count(*) FROM {EDGES_TABLE_NAME} WHERE {SOURCE_COLUMN_NAME} = {TARGET_COLUMN_NAME}"
-        self_loop_result = network_data.query_edges(self_loop_query)
-        num_self_loops = self_loop_result.columns[0][0].as_py()
-
-        num_parallel_edges_directed_query = f"SELECT COUNT(*) FROM {EDGES_TABLE_NAME} WHERE {COUNT_IDX_DIRECTED_COLUMN_NAME} = 2"
-        num_parallel_edges_directed_result = network_data.query_edges(
-            num_parallel_edges_directed_query
-        )
-        num_parallel_edges_directed = num_parallel_edges_directed_result.columns[0][
-            0
-        ].as_py()
-
-        num_parallel_edges_undirected_query = f"SELECT COUNT(*) FROM {EDGES_TABLE_NAME} WHERE {COUNT_IDX_UNDIRECTED_COLUMN_NAME} = 2"
-        num_parallel_edges_undirected_result = network_data.query_edges(
-            num_parallel_edges_undirected_query
-        )
-        num_parallel_edges_undirected = num_parallel_edges_undirected_result.columns[0][
-            0
-        ].as_py()
-
-        directed_props = GraphProperties(number_of_edges=num_edges_directed)
-        undirected_props = GraphProperties(number_of_edges=num_edges_undirected)
-        directed_multi_props = GraphProperties(
-            number_of_edges=num_edges, parallel_edges=num_parallel_edges_directed
-        )
-        undirected_multi_props = GraphProperties(
-            number_of_edges=num_edges, parallel_edges=num_parallel_edges_undirected
-        )
-
-        props = {
-            GraphType.DIRECTED.value: directed_props,
-            GraphType.DIRECTED_MULTI.value: directed_multi_props,
-            GraphType.UNDIRECTED.value: undirected_props,
-            GraphType.UNDIRECTED_MULTI.value: undirected_multi_props,
-        }
-
         result = cls(
             number_of_nodes=num_rows,
-            properties_by_graph_type=props,
-            number_of_self_loops=num_self_loops,
+            num_edges=num_edges,
         )
         return result

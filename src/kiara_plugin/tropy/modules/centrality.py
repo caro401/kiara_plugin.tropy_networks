@@ -1,160 +1,160 @@
 # -*- coding: utf-8 -*-
-from typing import Any, ClassVar, Dict, Mapping
-
-from pydantic import Field
-
-from kiara.api import KiaraModule
-from kiara.models.module import KiaraModuleConfig
-from kiara_plugin.network_analysis.defaults import (
-    ATTRIBUTE_PROPERTY_KEY,
-    DEFAULT_UNWEIGHTED_NODE_DEGREE_COLUMN_NAME,
-)
-from kiara_plugin.network_analysis.models import NetworkData
-from kiara_plugin.tropy.defaults import (
-    DEFAULT_UNWEIGHTED_BETWEENNESS_COLUMN_NAME,
-    DEFAULT_WEIGHTED_BETWEENNESS_COLUMN_NAME,
-    UNWEIGHTED_NODE_BETWEENNESS_TEXT,
-)
-
-KIARA_METADATA = {
-    "description": "Kiara modules related to centrality calculations",
-}
-
-
-class CentralityModuleConfig(KiaraModuleConfig):
-    """Configuration for degree ranking module."""
-
-    weighted: bool = Field(
-        description="Whether to calculate the weighted degree or not.", default=False
-    )
-    target_column_name: str = Field(
-        description="The name of the column in the nodes table containing the node degree.",
-        default=DEFAULT_UNWEIGHTED_NODE_DEGREE_COLUMN_NAME,
-    )
-
-
-class Betweenness_Ranking(KiaraModule):
-    """Creates an ordered table with the rank and raw score for betweenness centrality.
-    Betweenness centrality measures the percentage of all shortest paths that a node appears on, therefore measuring the likeliness that a node may act as a connector or 'intermediary'.
-
-    Uses a directed graph and networkx.betweenness_centrality()
-    https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.betweenness_centrality.html#networkx.algorithms.centrality.betweenness_centrality"""
-
-    _module_type_name: ClassVar[str] = "tropy.network_data.calculate_betweenness"
-    _config_cls = CentralityModuleConfig
-
-    KIARA_METADATA: ClassVar[Dict[str, Any]] = {
-        "references": {
-            "discussion": {
-                "url": "https://github.com/DHARPA-Project/kiara_plugin.network_analysis/discussions/26"
-            },
-            "rustworkx_doc": {
-                "url": "https://qiskit.org/ecosystem/rustworkx/tutorial/betweenness_centrality.html",
-            },
-        }
-    }
-
-    @classmethod
-    def retrieve_included_operations(cls) -> Mapping[str, Mapping[str, Any]]:
-        result = {
-            "tropy.network_data.calculate_betweenness_weighted": {
-                "module_config": {
-                    "weighted": True,
-                },
-                "doc": "Calculate weighted betweenness for nodes in a network.",
-            }
-        }
-        return result
-
-    def create_inputs_schema(self):
-        result = {
-            "network_data": {
-                "type": "network_data",
-                "doc": "The network graph being queried.",
-            }
-        }
-
-        if self.get_config_value("weighted"):
-            result["weight_column_name"] = {
-                "type": "string",
-                "doc": "The name of the column in the edge table containing data for the 'weight' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weight is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
-            }
-            result["weight_meaning"] = {
-                "type": "boolean",
-                "default": True,
-                "doc": "How the weights given should be interpreted. If 'True', weight will be defined positively as 'strength', and these edges will be prioritised in shortest path calculations. If 'False', weight will be defined negatively as 'cost' or 'distance', and these edges will be avoided in shortest path calculations.",
-            }
-
-        return result
-
-    def create_outputs_schema(self):
-        if self.get_config_value("weighted"):
-            txt = " weighted"
-        else:
-            txt = " "
-        return {
-            "network_data": {
-                "type": "network_data",
-                "doc": f"Updated network data with{txt} betweenness ranking assigned as a node attribute.",
-            },
-        }
-
-    def process(self, inputs, outputs):
-        import numpy as np
-        import pyarrow as pa
-
-        from kiara_plugin.network_analysis.models.metadata import (
-            NetworkEdgeAttributeMetadata,
-        )
-
-        edges = inputs.get_value_obj("network_data")
-
-        use_weighted = self.get_config_value("weighted")
-        if use_weighted:
-            weight_name = inputs.get_value_data("weight_column_name")
-            weight_meaning = inputs.get_value_data("weight_meaning")
-
-        network_data: NetworkData = edges.data
-
-        num_nodes = network_data.num_nodes
-        random_centrality_data = pa.array(np.random.rand(num_nodes))
-
-        NODE_BETWEENNESS_COLUMN_METADATA = NetworkEdgeAttributeMetadata(doc=UNWEIGHTED_NODE_BETWEENNESS_TEXT, computed_attribute=True)  # type: ignore
-
-        NODE_WEIGHTED_BETWEENNESS_COLUMN_METADATA = NetworkEdgeAttributeMetadata(
-            doc=UNWEIGHTED_NODE_BETWEENNESS_TEXT, computed_attribute=True
-        )  # type: ignore
-
-        if use_weighted:
-            weight_name = inputs.get_value_data("weight_column_name")
-            weight_meaning = inputs.get_value_data("weight_meaning")
-            if weight_meaning:
-                txt = "strength"
-            else:
-                txt = "shortest_path"
-            betweenness_column_name = (
-                f"{DEFAULT_WEIGHTED_BETWEENNESS_COLUMN_NAME}{weight_name}_{txt}"
-            )
-            metadata = NODE_WEIGHTED_BETWEENNESS_COLUMN_METADATA
-        else:
-            betweenness_column_name = DEFAULT_UNWEIGHTED_BETWEENNESS_COLUMN_NAME
-            metadata = NODE_BETWEENNESS_COLUMN_METADATA
-
-        augmented_node_columns = {betweenness_column_name: random_centrality_data}
-
-        augmented_node_columns_md = {
-            betweenness_column_name: {
-                ATTRIBUTE_PROPERTY_KEY: metadata,
-            }
-        }
-
-        cloned = NetworkData.create_augmented(
-            network_data,
-            additional_nodes_columns=augmented_node_columns,
-            nodes_column_metadata=augmented_node_columns_md,
-        )
-
-        outputs.set_values(network_data=cloned)
+# from typing import Any, ClassVar, Dict, Mapping
+#
+# from pydantic import Field
+#
+# from kiara.api import KiaraModule
+# from kiara.models.module import KiaraModuleConfig
+# from kiara_plugin.network_analysis.defaults import (
+#     ATTRIBUTE_PROPERTY_KEY,
+#     DEFAULT_UNWEIGHTED_NODE_DEGREE_COLUMN_NAME,
+# )
+# from kiara_plugin.network_analysis.models import NetworkData
+# from kiara_plugin.tropy.defaults import (
+#     DEFAULT_UNWEIGHTED_BETWEENNESS_COLUMN_NAME,
+#     DEFAULT_WEIGHTED_BETWEENNESS_COLUMN_NAME,
+#     UNWEIGHTED_NODE_BETWEENNESS_TEXT,
+# )
+#
+# KIARA_METADATA = {
+#     "description": "Kiara modules related to centrality calculations",
+# }
+#
+#
+# class CentralityModuleConfig(KiaraModuleConfig):
+#     """Configuration for degree ranking module."""
+#
+#     weighted: bool = Field(
+#         description="Whether to calculate the weighted degree or not.", default=False
+#     )
+#     target_column_name: str = Field(
+#         description="The name of the column in the nodes table containing the node degree.",
+#         default=DEFAULT_UNWEIGHTED_NODE_DEGREE_COLUMN_NAME,
+#     )
+#
+#
+# class Betweenness_Ranking(KiaraModule):
+#     """Creates an ordered table with the rank and raw score for betweenness centrality.
+#     Betweenness centrality measures the percentage of all shortest paths that a node appears on, therefore measuring the likeliness that a node may act as a connector or 'intermediary'.
+#
+#     Uses a directed graph and networkx.betweenness_centrality()
+#     https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.betweenness_centrality.html#networkx.algorithms.centrality.betweenness_centrality"""
+#
+#     _module_type_name: ClassVar[str] = "tropy.network_data.calculate_betweenness"
+#     _config_cls = CentralityModuleConfig
+#
+#     KIARA_METADATA: ClassVar[Dict[str, Any]] = {
+#         "references": {
+#             "discussion": {
+#                 "url": "https://github.com/DHARPA-Project/kiara_plugin.network_analysis/discussions/26"
+#             },
+#             "rustworkx_doc": {
+#                 "url": "https://qiskit.org/ecosystem/rustworkx/tutorial/betweenness_centrality.html",
+#             },
+#         }
+#     }
+#
+#     @classmethod
+#     def retrieve_included_operations(cls) -> Mapping[str, Mapping[str, Any]]:
+#         result = {
+#             "tropy.network_data.calculate_betweenness_weighted": {
+#                 "module_config": {
+#                     "weighted": True,
+#                 },
+#                 "doc": "Calculate weighted betweenness for nodes in a network.",
+#             }
+#         }
+#         return result
+#
+#     def create_inputs_schema(self):
+#         result = {
+#             "network_data": {
+#                 "type": "network_data",
+#                 "doc": "The network graph being queried.",
+#             }
+#         }
+#
+#         if self.get_config_value("weighted"):
+#             result["weight_column_name"] = {
+#                 "type": "string",
+#                 "doc": "The name of the column in the edge table containing data for the 'weight' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weight is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
+#             }
+#             result["weight_meaning"] = {
+#                 "type": "boolean",
+#                 "default": True,
+#                 "doc": "How the weights given should be interpreted. If 'True', weight will be defined positively as 'strength', and these edges will be prioritised in shortest path calculations. If 'False', weight will be defined negatively as 'cost' or 'distance', and these edges will be avoided in shortest path calculations.",
+#             }
+#
+#         return result
+#
+#     def create_outputs_schema(self):
+#         if self.get_config_value("weighted"):
+#             txt = " weighted"
+#         else:
+#             txt = " "
+#         return {
+#             "network_data": {
+#                 "type": "network_data",
+#                 "doc": f"Updated network data with{txt} betweenness ranking assigned as a node attribute.",
+#             },
+#         }
+#
+#     def process(self, inputs, outputs):
+#         import numpy as np
+#         import pyarrow as pa
+#
+#         from kiara_plugin.network_analysis.models.metadata import (
+#             NetworkEdgeAttributeMetadata,
+#         )
+#
+#         edges = inputs.get_value_obj("network_data")
+#
+#         use_weighted = self.get_config_value("weighted")
+#         if use_weighted:
+#             weight_name = inputs.get_value_data("weight_column_name")
+#             weight_meaning = inputs.get_value_data("weight_meaning")
+#
+#         network_data: NetworkData = edges.data
+#
+#         num_nodes = network_data.num_nodes
+#         random_centrality_data = pa.array(np.random.rand(num_nodes))
+#
+#         NODE_BETWEENNESS_COLUMN_METADATA = NetworkEdgeAttributeMetadata(doc=UNWEIGHTED_NODE_BETWEENNESS_TEXT, computed_attribute=True)  # type: ignore
+#
+#         NODE_WEIGHTED_BETWEENNESS_COLUMN_METADATA = NetworkEdgeAttributeMetadata(
+#             doc=UNWEIGHTED_NODE_BETWEENNESS_TEXT, computed_attribute=True
+#         )  # type: ignore
+#
+#         if use_weighted:
+#             weight_name = inputs.get_value_data("weight_column_name")
+#             weight_meaning = inputs.get_value_data("weight_meaning")
+#             if weight_meaning:
+#                 txt = "strength"
+#             else:
+#                 txt = "shortest_path"
+#             betweenness_column_name = (
+#                 f"{DEFAULT_WEIGHTED_BETWEENNESS_COLUMN_NAME}{weight_name}_{txt}"
+#             )
+#             metadata = NODE_WEIGHTED_BETWEENNESS_COLUMN_METADATA
+#         else:
+#             betweenness_column_name = DEFAULT_UNWEIGHTED_BETWEENNESS_COLUMN_NAME
+#             metadata = NODE_BETWEENNESS_COLUMN_METADATA
+#
+#         augmented_node_columns = {betweenness_column_name: random_centrality_data}
+#
+#         augmented_node_columns_md = {
+#             betweenness_column_name: {
+#                 ATTRIBUTE_PROPERTY_KEY: metadata,
+#             }
+#         }
+#
+#         cloned = NetworkData.create_augmented(
+#             network_data,
+#             additional_nodes_columns=augmented_node_columns,
+#             nodes_column_metadata=augmented_node_columns_md,
+#         )
+#
+#         outputs.set_values(network_data=cloned)
 
 
 #        G = network_data.as_networkx_graph(nx.DiGraph)

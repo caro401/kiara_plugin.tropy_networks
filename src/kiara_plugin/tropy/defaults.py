@@ -1,8 +1,17 @@
 # -*- coding: utf-8 -*-
-DEFAULT_WEIGHTED_NODE_DEGREE_COLUMN_NAME = "_degree_weighted_"
-DEFAULT_UNWEIGHTED_BETWEENNESS_COLUMN_NAME = "_betweenness"
-DEFAULT_WEIGHTED_BETWEENNESS_COLUMN_NAME = "_betweenness_weighted_"
+from enum import Enum
 
-WEIGHTED_NODE_DEGREE_TEXT = """The degree of a node is the number of edges connected to the node. The weight of the edges is taken into account."""
-UNWEIGHTED_NODE_BETWEENNESS_TEXT = """The betweenness centrality for a node v is the fraction of all shortest paths that pass through v."""
-WEIGHTED_NODE_BETWEENNESS_TEXT = """The betweenness centrality for a node v is the fraction of all shortest paths that pass through v. The weight of the edges is taken into account."""
+EDGES_TABLE_NAME = "edges"
+NODES_TABLE_NAME = "nodes"
+
+DEFAULT_SOURCE_COLUMN_NAME = "source"
+DEFAULT_TARGET_COLUMN_NAME = "target"
+
+DEFAULT_NODE_ID_COLUMN_NAME = "node_id"
+
+
+class GraphType(Enum):
+    UNDIRECTED = "undirected"
+    DIRECTED = "directed"
+    DIRECTED_MULTI = "directed_multi"
+    UNDIRECTED_MULTI = "undirected_multi"
