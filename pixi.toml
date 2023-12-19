@@ -7,9 +7,10 @@ channels = ["dharpa", "conda-forge"]
 platforms = ["linux-64", "win-64", "osx-64", "osx-arm64"]
 
 [tasks]
-install-dev-env = "pip install -e '.[dev_utils]'"
-mypy = ""
+install-dev-env = "pip install --upgrade -e '.[dev_utils]'"
 pre-commit-check = ".pixi/env/bin/pre-commit run --all-files"
+tests = "py.test"
+mypy = "mypy  --namespace-packages --explicit-package-base src/kiara_plugin/tropy"
 kiara = ".pixi/env/bin/kiara"
 show-versions = ".pixi/env/bin/kiara --version"
 delete-context = ".pixi/env/bin/kiara context delete"
