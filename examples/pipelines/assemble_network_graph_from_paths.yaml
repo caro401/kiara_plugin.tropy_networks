@@ -1,0 +1,30 @@
+pipeline_name: assemble_network_graph_from_paths
+doc: Assemble a network graph value from two csv files.
+steps:
+  - module_type: import.table.from.local_file_path
+    step_id: import_edges_table
+    module_config:
+      constants:
+        first_row_is_header: true
+  - module_type: import.table.from.local_file_path
+    step_id: import_nodes_table
+    module_config:
+      constants:
+        first_row_is_header: true
+  - module_type: assemble.network_graph
+    step_id: assemble_network_graph
+    input_links:
+      edges: import_edges_table.table
+      nodes: import_nodes_table.table
+
+
+input_aliases:
+  import_edges_table.path: edges_path
+  import_nodes_table.path: nodes_path
+  assemble_network_graph.graph_type: graph_type
+  assemble_network_graph.node_id_column: node_id_column
+  assemble_network_graph.source_column: source_column
+  assemble_network_graph.target_column: target_column
+
+output_aliases:
+  assemble_network_graph.network_graph: network_graph

@@ -1,0 +1,8 @@
+operation: ${this_dir}/../pipelines/assemble_network_graph_from_paths.yaml
+inputs:
+  graph_type: undirected
+  edges_path: ${this_dir}/../data/journals/JournalEdges1902.csv
+  nodes_path: ${this_dir}/../data/journals/JournalNodes1902.csv
+  node_id_column: Id
+  source_column: Source
+  target_column: Target

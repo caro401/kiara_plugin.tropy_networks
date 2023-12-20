@@ -237,6 +237,8 @@ class NetworkGraph(KiaraTables):
     ) -> Union["nx.Graph", "nx.DiGraph", "nx.MultiGraph", "nx.MultiDiGraph"]:
         """Return the network data as a networkx graph object."""
 
+        import networkx as nx
+
         if self.graph_type == GraphType.DIRECTED.value:
             graph_type = nx.DiGraph
         elif self.graph_type == GraphType.UNDIRECTED.value:
