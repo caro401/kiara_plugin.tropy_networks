@@ -284,10 +284,10 @@ class GraphProperties(BaseModel):
 class NetworkGraphProperties(ValueMetadata):
     """Network data stats."""
 
-    _metadata_key: ClassVar[str] = "network_data"
+    _metadata_key: ClassVar[str] = "network_graph"
 
     number_of_nodes: int = Field(description="Number of nodes in the network graph.")
-    num_edges: int = Field(description="Number of edges in the network graph.")
+    number_of_edges: int = Field(description="Number of edges in the network graph.")
 
     @classmethod
     def retrieve_supported_data_types(cls) -> Iterable[str]:
@@ -296,13 +296,14 @@ class NetworkGraphProperties(ValueMetadata):
     @classmethod
     def create_value_metadata(cls, value: Value) -> "NetworkGraphProperties":
 
-        network_data: NetworkGraph = value.data
+        network_graph: NetworkGraph = value.data
 
-        num_rows = network_data.num_nodes
-        num_edges = network_data.num_edges
+        graph = network_graph.as_networkx_graph()
+        num_rows = graph.number_of_nodes()
+        num_edges = len(graph.edges())
 
         result = cls(
             number_of_nodes=num_rows,
-            num_edges=num_edges,
+            number_of_edges=num_edges,
         )
         return result

@@ -1,0 +1,12 @@
+operation: "${this_dir}/../pipelines/init.yaml"
+inputs:
+  import_edges_table__path: "${this_dir}/../data/journals/JournalEdges1902.csv"
+  import_nodes_table__path: "${this_dir}/../data/journals/JournalNodes1902.csv"
+  assemble_network_graph__graph_type: "directed"
+  assemble_network_graph__node_id_column: "Id"
+  assemble_network_graph__source_column: "Source"
+  assemble_network_graph__target_column: "Target"
+save:
+  assemble_network_graph__network_graph: "journals_graph_directed"
+  import_edges_table__table: "journals_edges_table"
+  import_nodes_table__table: "journals_nodes_table"

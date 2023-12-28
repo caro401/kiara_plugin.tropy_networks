@@ -1,0 +1,4 @@
+network_graph::properties::metadata.tables::tables::edges::rows: 321
+network_graph::properties::metadata.tables::tables::nodes::rows: 276
+network_graph::properties::metadata.network_graph::number_of_nodes: 276
+network_graph::properties::metadata.network_graph::number_of_edges: 321

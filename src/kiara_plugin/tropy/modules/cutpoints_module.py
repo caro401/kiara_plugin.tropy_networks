@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from kiara.api import KiaraModule
+from kiara.models.values.value import ValueMap
 
 KIARA_METADATA = {
     "authors": [
@@ -38,7 +39,7 @@ class CutPointsList(KiaraModule):
             },
         }
 
-    def process(self, inputs, outputs):
+    def process(self, inputs: ValueMap, outputs: ValueMap):
 
         from kiara_plugin.tropy.models import NetworkGraph
 

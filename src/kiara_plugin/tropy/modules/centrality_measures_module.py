@@ -2,6 +2,7 @@
 from operator import itemgetter
 
 from kiara.api import KiaraModule
+from kiara.models.values.value import ValueMap
 
 KIARA_METADATA = {
     "authors": [
@@ -51,7 +52,7 @@ class Degree_Ranking(KiaraModule):
             },
         }
 
-    def process(self, inputs, outputs):
+    def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
         import pandas as pd
@@ -96,7 +97,7 @@ class Degree_Ranking(KiaraModule):
 
         df = pd.DataFrame(sorted_dict, columns=["Rank", "Node", "Degree"])
 
-        if wd == True:
+        if wd is True:
             if weight_name == "":
                 MG = network_data.as_networkx_graph()
 
@@ -194,7 +195,7 @@ class Betweenness_Ranking(KiaraModule):
             },
         }
 
-    def process(self, inputs, outputs):
+    def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
         import pandas as pd
@@ -236,15 +237,15 @@ class Betweenness_Ranking(KiaraModule):
         ]
 
         df = pd.DataFrame(sorted_dict)
-        df.columns = ["Rank", "Node", "Score"]
+        df.columns = pd.Index(["Rank", "Node", "Score"])
 
-        if wd == True:
+        if wd is True:
             graph = network_data.as_networkx_graph()
             edge_weight = nx.get_edge_attributes(graph, weight_name)
             for u, v, key in edge_weight:
                 nx.set_edge_attributes(graph, edge_weight, "weight")
 
-            if wm == True:
+            if wm is True:
                 for u, v, d in graph.edges(data=True):
                     d["weight"] == (1 / d["weight"])
 
@@ -307,7 +308,7 @@ class Eigenvector_Ranking(KiaraModule):
             },
         }
 
-    def process(self, inputs, outputs):
+    def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
         import pandas as pd
@@ -350,15 +351,15 @@ class Eigenvector_Ranking(KiaraModule):
         ]
 
         df = pd.DataFrame(sorted_dict)
-        df.columns = ["Rank", "Node", "Score"]
+        df.columns = pd.Index(["Rank", "Node", "Score"])
 
-        if wd == True:
+        if wd is True:
             graph = network_data.as_networkx_graph()
             edge_weight = nx.get_edge_attributes(graph, weight_name)
             for u, v, key in edge_weight:
                 nx.set_edge_attributes(graph, edge_weight, "weight")
 
-            if wm == False:
+            if wm is False:
                 for u, v, d in graph.edges(data=True):
                     d["weight"] == (1 / d["weight"])
 
@@ -422,7 +423,7 @@ class Closeness_Ranking(KiaraModule):
             },
         }
 
-    def process(self, inputs, outputs):
+    def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
         import pandas as pd
@@ -464,15 +465,15 @@ class Closeness_Ranking(KiaraModule):
         ]
 
         df = pd.DataFrame(sorted_dict)
-        df.columns = ["Rank", "Node", "Score"]
+        df.columns = pd.Index(["Rank", "Node", "Score"])
 
-        if wd == True:
+        if wd is True:
             graph = network_data.as_networkx_graph()
             edge_weight = nx.get_edge_attributes(graph, weight_name)
             for u, v, key in edge_weight:
                 nx.set_edge_attributes(graph, edge_weight, "weight")
 
-            if wm == True:
+            if wm is True:
                 for u, v, d in graph.edges(data=True):
                     d["weight"] == (1 / d["weight"])
 

@@ -1,0 +1,18 @@
+pipeline_name: init_tropy_plugin_data
+doc: Initialize some data to be used with example jobs.
+steps:
+  - module_type: import.table.from.local_file_path
+    step_id: import_edges_table
+    module_config:
+      constants:
+        first_row_is_header: true
+  - module_type: import.table.from.local_file_path
+    step_id: import_nodes_table
+    module_config:
+      constants:
+        first_row_is_header: true
+  - module_type: assemble.network_graph
+    step_id: assemble_network_graph
+    input_links:
+      edges: import_edges_table.table
+      nodes: import_nodes_table.table

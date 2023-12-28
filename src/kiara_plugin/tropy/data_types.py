@@ -39,7 +39,7 @@ class NetworkGraphType(TablesType):
 
     def parse_python_obj(self, data: Any) -> NetworkGraph:
 
-        return data
+        return data  # type: ignore
 
     def _validate(cls, value: Any) -> None:
         if not isinstance(value, NetworkGraph):
@@ -47,7 +47,7 @@ class NetworkGraphType(TablesType):
                 f"Invalid type '{type(value)}': must be of 'NetworkGraph' (or a sub-class)."
             )
 
-    def serialize(self, data: NetworkGraph) -> Union[None, str, "SerializedData"]:
+    def serialize(self, data: NetworkGraph) -> Union[None, str, "SerializedData"]:  # type: ignore
 
         import pyarrow as pa
 

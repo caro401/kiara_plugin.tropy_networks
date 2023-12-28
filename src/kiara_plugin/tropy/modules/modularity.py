@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from kiara.api import KiaraModule, ValueMapSchema
+from kiara.models.values.value import ValueMap
 
 KIARA_METADATA = {
     "authors": [
@@ -49,7 +50,7 @@ class ModularityCommunity(KiaraModule):
             },
         }
 
-    def process(self, inputs, outputs):
+    def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
         from networkx.algorithms import community
