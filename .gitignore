@@ -65,3 +65,5 @@ ci/conda/kiara_plugin.tropy/meta.yaml
 .pixi
 pixi.lock
 dev.py
+dev.ipynb
+**/.ipynb_checkpoints
