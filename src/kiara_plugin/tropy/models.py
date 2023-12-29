@@ -159,16 +159,23 @@ class NetworkGraph(KiaraTables):
         else:
             raise KiaraException(f"Invalid graph type: {type(graph)}")
 
-        node_dict = dict(graph.nodes(data=True))
-        nodes_data = pd.DataFrame.from_dict(node_dict, orient="index")
-        nodes_data = nodes_data.reset_index()
-        nodes_data = nodes_data.rename(columns={"index": node_id_column_name})
-        nodes_table = KiaraTable.create_table(nodes_data)
-
         edges_df = nx.to_pandas_edgelist(
             graph, source=source_column_name, target=target_column_name
         )
         edges_table = KiaraTable.create_table(edges_df)
+
+        node_dict = {
+            k: v if v else {"_x_placeholder_x_": "__dummy__"}
+            for k, v in graph.nodes(data=True)
+        }
+        nodes_data = pd.DataFrame.from_dict(node_dict, orient="index")
+        nodes_data = nodes_data.reset_index()
+
+        if "_x_placeholder_x_" in nodes_data.columns:
+            nodes_data = nodes_data.drop("_x_placeholder_x_", axis=1)
+        nodes_data = nodes_data.rename(columns={"index": node_id_column_name})
+
+        nodes_table = KiaraTable.create_table(nodes_data)
 
         return cls.create_from_tables(
             graph_type=graph_type,
