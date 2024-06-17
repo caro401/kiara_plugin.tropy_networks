@@ -67,3 +67,4 @@ pixi.lock
 dev.py
 dev.ipynb
 **/.ipynb_checkpoints
+output/
