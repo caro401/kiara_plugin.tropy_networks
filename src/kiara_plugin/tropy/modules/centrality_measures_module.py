@@ -42,10 +42,6 @@ class Degree_Ranking(KiaraModule):
 
     def create_outputs_schema(self):
         return {
-            "network_result": {
-                "type": "table",
-                "doc": "A table showing the rank and raw score for degree centrality.",
-            },
             "centrality_network": {
                 "type": "network_graph",
                 "doc": "Updated network data with degree ranking assigned as a node attribute.",
