@@ -68,87 +68,14 @@ class Degree_Ranking(KiaraModule):
         G = network_data.as_networkx_graph()
         G.remove_edges_from(list(nx.selfloop_edges(G)))
 
-        def result_func(list):
-            rank, count, previous, result = (0, 0, None, {})
-            for key, num in list:
-                count += 1
-                if num != previous:
-                    rank += count
-                    previous = num
-                    count = 0
-                result[key] = num, rank
-            return result
-
         degree = {}
         for node in G:
             degree[node] = G.degree(node)
         nx.set_node_attributes(G, degree, "Degree Score")
 
-        sorted_dict = [
-            [item[1][1], item[0], item[1][0]]
-            for item in sorted(
-                result_func(
-                    sorted(degree.items(), key=itemgetter(1), reverse=True)
-                ).items(),
-                key=itemgetter(1),
-                reverse=True,
-            )
-        ]
-
-        df = pd.DataFrame(sorted_dict, columns=["Rank", "Node", "Degree"])
-
-        if wd is True:
-            if weight_name == "":
-                MG = network_data.as_networkx_graph()
-
-                graph = nx.DiGraph()
-                for u, v, data in MG.edges(data=True):
-                    w = data["weight"] if "weight" in data else 1
-                    if graph.has_edge(u, v):
-                        graph[u][v]["weight"] += w
-                    else:
-                        graph.add_edge(u, v, weight=w)
-
-                weight_degree = {}
-                for node in graph:
-                    weight_degree[node] = graph.degree(node, weight="weight")
-                nx.set_node_attributes(G, weight_degree, "Weighted Degree Score")
-
-                edge_weight = nx.get_edge_attributes(graph, "weight")
-                nx.set_edge_attributes(G, edge_weight, "weight")
-
-                df2 = pd.DataFrame(
-                    list(weight_degree.items()), columns=["Node", "Weighted Degree"]
-                )
-                df = df.merge(df2, how="left", on="Node").reset_index(drop=True)
-
-            if weight_name != "":
-                MG = network_data.as_networkx_graph()
-                edge_weight = nx.get_edge_attributes(MG, weight_name)
-                for u, v, key in edge_weight:
-                    nx.set_edge_attributes(MG, edge_weight, "weight")
-
-                graph = nx.DiGraph()
-                for u, v, data in MG.edges(data=True):
-                    w = data["weight"] if "weight" in data else 1
-                    if graph.has_edge(u, v):
-                        graph[u][v]["weight"] += w
-                    else:
-                        graph.add_edge(u, v, weight=w)
-
-                weight_degree = {}
-                for node in graph:
-                    weight_degree[node] = graph.degree(node, weight="weight")
-                nx.set_node_attributes(G, weight_degree, "Weighted Degree Score")
-
-                df2 = pd.DataFrame(
-                    list(weight_degree.items()), columns=["Node", "Weighted Degree"]
-                )
-                df = df.merge(df2, how="left", on="Node").reset_index(drop=True)
-
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
-        outputs.set_values(network_result=df, centrality_network=attribute_network)
+        outputs.set_values(centrality_network=attribute_network)
 
 
 class Betweenness_Ranking(KiaraModule):
@@ -202,7 +129,7 @@ class Betweenness_Ranking(KiaraModule):
 
         from kiara_plugin.tropy.models import NetworkGraph
 
-        edges = inputs.get_value_obj("network_data")
+        edges = inputs.get_value_obj("network_graph")
         wd = inputs.get_value_data("weighted_betweenness")
         weight_name = inputs.get_value_data("weight_column_name")
         wm = inputs.get_value_data("weight_meaning")
@@ -212,55 +139,12 @@ class Betweenness_Ranking(KiaraModule):
         G = network_data.as_networkx_graph()
         G.remove_edges_from(list(nx.selfloop_edges(G)))
 
-        def result_func(list):
-            rank, count, previous, result = (0, 0, None, {})
-            for key, num in list:
-                count += 1
-                if num != previous:
-                    rank += count
-                    previous = num
-                    count = 0
-                result[key] = num, rank
-            return result
-
         between = nx.betweenness_centrality(G)
         nx.set_node_attributes(G, between, "Betweenness Score")
-        sorted_dict = [
-            [item[1][1], item[0], item[1][0]]
-            for item in sorted(
-                result_func(
-                    sorted(between.items(), key=itemgetter(1), reverse=True)
-                ).items(),
-                key=itemgetter(1),
-                reverse=True,
-            )
-        ]
-
-        df = pd.DataFrame(sorted_dict)
-        df.columns = pd.Index(["Rank", "Node", "Score"])
-
-        if wd is True:
-            graph = network_data.as_networkx_graph()
-            edge_weight = nx.get_edge_attributes(graph, weight_name)
-            for u, v, key in edge_weight:
-                nx.set_edge_attributes(graph, edge_weight, "weight")
-
-            if wm is True:
-                for u, v, d in graph.edges(data=True):
-                    d["weight"] == (1 / d["weight"])
-
-            weight_betweenness = nx.betweenness_centrality(graph, weight="weight")
-            nx.set_node_attributes(G, weight_betweenness, "Weighted Betweenness Score")
-
-            df2 = pd.DataFrame(
-                list(weight_betweenness.items()),
-                columns=["Node", "Weighted Betweenness"],
-            )
-            df = df.merge(df2, how="left", on="Node").reset_index(drop=True)
 
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
-        outputs.set_values(network_result=df, centrality_network=attribute_network)
+        outputs.set_values(centrality_network=attribute_network)
 
 
 class Eigenvector_Ranking(KiaraModule):
@@ -326,57 +210,12 @@ class Eigenvector_Ranking(KiaraModule):
         G = network_data.as_networkx_graph()
         G.remove_edges_from(list(nx.selfloop_edges(G)))
 
-        def result_func(list):
-            rank, count, previous, result = (0, 0, None, {})
-            for key, num in list:
-                count += 1
-                if num != previous:
-                    rank += count
-                    previous = num
-                    count = 0
-                result[key] = num, rank
-            return result
-
         eigenvector = nx.eigenvector_centrality(G, max_iter=iterations)
         nx.set_node_attributes(G, eigenvector, "Eigenvector Score")
-        sorted_dict = [
-            [item[1][1], item[0], item[1][0]]
-            for item in sorted(
-                result_func(
-                    sorted(eigenvector.items(), key=itemgetter(1), reverse=True)
-                ).items(),
-                key=itemgetter(1),
-                reverse=True,
-            )
-        ]
-
-        df = pd.DataFrame(sorted_dict)
-        df.columns = pd.Index(["Rank", "Node", "Score"])
-
-        if wd is True:
-            graph = network_data.as_networkx_graph()
-            edge_weight = nx.get_edge_attributes(graph, weight_name)
-            for u, v, key in edge_weight:
-                nx.set_edge_attributes(graph, edge_weight, "weight")
-
-            if wm is False:
-                for u, v, d in graph.edges(data=True):
-                    d["weight"] == (1 / d["weight"])
-
-            weight_eigenvector = nx.eigenvector_centrality(
-                graph, weight="weight", max_iter=100000
-            )
-            nx.set_node_attributes(G, weight_eigenvector, "Weighted Eigenvector Score")
-
-            df2 = pd.DataFrame(
-                list(weight_eigenvector.items()),
-                columns=["Node", "Weighted Eigenvector"],
-            )
-            df = df.merge(df2, how="left", on="Node").reset_index(drop=True)
 
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
-        outputs.set_values(network_result=df, centrality_network=attribute_network)
+        outputs.set_values(centrality_network=attribute_network)
 
 
 class Closeness_Ranking(KiaraModule):
