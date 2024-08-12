@@ -247,7 +247,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
         outputs.set_value("network_graph", network_graph)
 
 class AssignNetworkWeight(KiaraModule):
-    """Assigns data for 'strength' or 'weight' of edges, and whether this is considered positive or negative. This can either be taken from a named weight column in the edges table, or calculated by aggregrating parallel edges where edge weight is assigned a weight of 1. If this module is not run, no weighted calculations will be run in future modules."""
+    """Assigns data for 'strength' or 'weight' of edges. This can either be taken from a named weight column in the edges table, or calculated by aggregrating parallel edges where edge weight is assigned a weight of 1. If this module is not run, no weighted calculations will be run in future modules."""
 
     _module_type_name = "tropy.assign_network_weight"
 
@@ -280,7 +280,6 @@ class AssignNetworkWeight(KiaraModule):
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
-        weight_meaning = inputs.get_value_data("weighted_meaning")
         weight_name = inputs.get_value_data("weight_column_name")
 
         network_data: NetworkGraph = edges.data
