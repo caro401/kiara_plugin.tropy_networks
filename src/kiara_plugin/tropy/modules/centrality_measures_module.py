@@ -108,10 +108,6 @@ class Betweenness_Ranking(KiaraModule):
 
     def create_outputs_schema(self):
         return {
-            "network_result": {
-                "type": "table",
-                "doc": "A table showing the rank and raw score for betweenness centrality.",
-            },
             "centrality_network": {
                 "type": "network_graph",
                 "doc": "Updated network data with betweenness ranking assigned as a node attribute.",
@@ -178,10 +174,6 @@ class Eigenvector_Ranking(KiaraModule):
 
     def create_outputs_schema(self):
         return {
-            "network_result": {
-                "type": "table",
-                "doc": "A table showing the rank and raw score for eigenvector centrality.",
-            },
             "centrality_network": {
                 "type": "network_graph",
                 "doc": "Updated network data with eigenvector ranking assigned as a node attribute.",
@@ -248,10 +240,6 @@ class Closeness_Ranking(KiaraModule):
 
     def create_outputs_schema(self):
         return {
-            "network_result": {
-                "type": "table",
-                "doc": "A table showing the rank and raw score for closeness centrality.",
-            },
             "centrality_network": {
                 "type": "network_graph",
                 "doc": "Updated network data with closeness ranking assigned as a node attribute.",
@@ -275,51 +263,9 @@ class Closeness_Ranking(KiaraModule):
         G = network_data.as_networkx_graph()
         G.remove_edges_from(list(nx.selfloop_edges(G)))
 
-        def result_func(list):
-            rank, count, previous, result = (0, 0, None, {})
-            for key, num in list:
-                count += 1
-                if num != previous:
-                    rank += count
-                    previous = num
-                    count = 0
-                result[key] = num, rank
-            return result
-
         closeness = nx.closeness_centrality(G)
         nx.set_node_attributes(G, closeness, "Closeness Score")
-        sorted_dict = [
-            [item[1][1], item[0], item[1][0]]
-            for item in sorted(
-                result_func(
-                    sorted(closeness.items(), key=itemgetter(1), reverse=True)
-                ).items(),
-                key=itemgetter(1),
-                reverse=True,
-            )
-        ]
-
-        df = pd.DataFrame(sorted_dict)
-        df.columns = pd.Index(["Rank", "Node", "Score"])
-
-        if wd is True:
-            graph = network_data.as_networkx_graph()
-            edge_weight = nx.get_edge_attributes(graph, weight_name)
-            for u, v, key in edge_weight:
-                nx.set_edge_attributes(graph, edge_weight, "weight")
-
-            if wm is True:
-                for u, v, d in graph.edges(data=True):
-                    d["weight"] == (1 / d["weight"])
-
-            weight_closeness = nx.closeness_centrality(graph, weight="weight")
-            nx.set_node_attributes(G, weight_closeness, "Weighted Closeness Score")
-
-            df2 = pd.DataFrame(
-                list(weight_closeness.items()), columns=["Node", "Weighted Closeness"]
-            )
-            df = df.merge(df2, how="left", on="Node").reset_index(drop=True)
 
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
-        outputs.set_values(network_result=df, centrality_network=attribute_network)
+        outputs.set_values(centrality_network=attribute_network)
