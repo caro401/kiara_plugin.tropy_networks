@@ -168,12 +168,18 @@ class NetworkGraph(KiaraTables):
             k: v if v else {"_x_placeholder_x_": "__dummy__"}
             for k, v in graph.nodes(data=True)
         }
+
         nodes_data = pd.DataFrame.from_dict(node_dict, orient="index")
         nodes_data = nodes_data.reset_index()
 
         if "_x_placeholder_x_" in nodes_data.columns:
             nodes_data = nodes_data.drop("_x_placeholder_x_", axis=1)
-        nodes_data = nodes_data.rename(columns={"index": node_id_column_name})
+
+        if node_id_column_name in nodes_data.columns:
+            # remove index column if it exists
+            nodes_data = nodes_data.drop("index", axis=1)
+        else:
+            nodes_data = nodes_data.rename(columns={"index": node_id_column_name})
 
         nodes_table = KiaraTable.create_table(nodes_data)
 
