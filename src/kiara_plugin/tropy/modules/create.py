@@ -245,3 +245,67 @@ class AssembleGraphFromTablesModule(KiaraModule):
         )
 
         outputs.set_value("network_graph", network_graph)
+
+class AssignNetworkWeight(KiaraModule):
+    """Assigns data for 'strength' or 'weight' of edges, and whether this is considered positive or negative. This can either be taken from a named weight column in the edges table, or calculated by aggregrating parallel edges where edge weight is assigned a weight of 1. If this module is not run, no weighted calculations will be run in future modules."""
+
+    _module_type_name = "tropy.assign_network_weight"
+
+    def create_inputs_schema(self):
+        return {
+            "network_graph": {
+                "type": "network_graph",
+                "doc": "The network graph for weights.",
+            },
+            "weight_column_name": {
+                "type": "string",
+                "default": "",
+                "doc": "The name of the column in the edge table containing data for the 'weight' or 'strength' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weighted degree is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
+            },
+        }
+
+    def create_outputs_schema(self):
+        return {
+            "weighted_network": {
+                "type": "network_graph",
+                "doc": "Updated network graph with weighted edges.",
+            },
+        }
+
+    def process(self, inputs: ValueMap, outputs: ValueMap):
+
+        import networkx as nx
+        import pandas as pd
+
+        from kiara_plugin.tropy.models import NetworkGraph
+
+        edges = inputs.get_value_obj("network_graph")
+        weight_meaning = inputs.get_value_data("weighted_meaning")
+        weight_name = inputs.get_value_data("weight_column_name")
+
+        network_data: NetworkGraph = edges.data
+
+        G = network_data.as_networkx_graph()
+
+        if weight_name == "":
+                MG = network_data.as_networkx_graph()
+
+                graph = nx.DiGraph()
+                for u, v, data in MG.edges(data=True):
+                    w = data["weight"] if "weight" in data else 1
+                    if graph.has_edge(u, v):
+                        graph[u][v]["weight"] += w
+                    else:
+                        graph.add_edge(u, v, weight=w)
+
+                edge_weight = nx.get_edge_attributes(graph, "weight")
+                nx.set_edge_attributes(G, edge_weight, "weight")
+
+        if weight_name != "":
+                edge_weight = nx.get_edge_attributes(G, weight_name)
+                for u, v, key in edge_weight:
+                    nx.set_edge_attributes(G, edge_weight, "weight")
+        
+        weighted_network = NetworkGraph.create_from_networkx_graph(G)
+
+        outputs.set_values(weighted_network=weighted_network)
