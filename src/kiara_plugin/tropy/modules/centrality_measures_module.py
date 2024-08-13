@@ -67,7 +67,14 @@ class Degree_Ranking(KiaraModule):
         degree = {}
         for node in G:
             degree[node] = G.degree(node)
-        nx.set_node_attributes(G, degree, "Degree Score")
+        nx.set_node_attributes(G, degree, "Degree")
+
+        if u, v, d in G.edges == True: # type: ignore
+            weight_degree = {}
+            for node in G:
+                weight_degree[node] = G.degree(node, weight="weight")
+            nx.set_node_attributes(G, weight_degree, "Weighted Degree")
+            
 
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
