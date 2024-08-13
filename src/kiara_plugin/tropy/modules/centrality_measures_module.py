@@ -28,11 +28,6 @@ class Degree_Ranking(KiaraModule):
                 "type": "network_graph",
                 "doc": "The network graph being queried.",
             },
-            "weighted_degree": {
-                "type": "boolean",
-                "default": True,
-                "doc": "Boolean to indicate whether to calculate weighted degree or not. Conditions for calculation can be set in 'weight_column_name'.",
-            },
             "weight_column_name": {
                 "type": "string",
                 "default": "",
@@ -51,8 +46,6 @@ class Degree_Ranking(KiaraModule):
     def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
-        import pandas as pd
-
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
@@ -96,16 +89,6 @@ class Betweenness_Ranking(KiaraModule):
                 "type": "network_graph",
                 "doc": "The network graph being queried.",
             },
-            "weighted_betweenness": {
-                "type": "boolean",
-                "default": True,
-                "doc": "Boolean to indicate whether to calculate weighted betweenness as well as unweighted betweenness.",
-            },
-            "weight_column_name": {
-                "type": "string",
-                "default": "",
-                "doc": "The name of the column in the edge table containing data for the 'weight' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weight is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
-            },
             "weight_meaning": {
                 "type": "boolean",
                 "default": True,
@@ -124,8 +107,6 @@ class Betweenness_Ranking(KiaraModule):
     def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
-        import pandas as pd
-
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
@@ -140,6 +121,10 @@ class Betweenness_Ranking(KiaraModule):
 
         between = nx.betweenness_centrality(G)
         nx.set_node_attributes(G, between, "Betweenness Score")
+
+        if nx.is_weighted(G, weight='weight') == True:
+            weight_betweenness = nx.betweenness_centrality(G, weight="weight")
+            nx.set_node_attributes(G, weight_betweenness, "Weighted Betweenness Score")
 
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
@@ -161,17 +146,9 @@ class Eigenvector_Ranking(KiaraModule):
                 "type": "network_graph",
                 "doc": "The network graph being queried.",
             },
-            "iterations": {"type": "integer", "default": 1000},
-            "weighted_eigenvector": {
-                "type": "boolean",
-                "default": True,
-                "doc": "Boolean to indicate whether to calculate weighted eigenvector as well as unweighted eigenvector.",
-            },
-            "weight_column_name": {
-                "type": "string",
-                "default": "",
-                "doc": "The name of the column in the edge table containing data for the 'weight' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weight is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
-            },
+            "iterations": {
+                "type": "integer", 
+                "default": 1000},
             "weight_meaning": {
                 "type": "boolean",
                 "default": True,
@@ -190,8 +167,6 @@ class Eigenvector_Ranking(KiaraModule):
     def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
-        import pandas as pd
-
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
@@ -207,6 +182,12 @@ class Eigenvector_Ranking(KiaraModule):
 
         eigenvector = nx.eigenvector_centrality(G, max_iter=iterations)
         nx.set_node_attributes(G, eigenvector, "Eigenvector Score")
+
+        if nx.is_weighted(G, weight='weight') == True:
+            weight_eigenvector = nx.eigenvector_centrality(
+                G, weight="weight", max_iter=100000
+            )
+            nx.set_node_attributes(G, weight_eigenvector, "Weighted Eigenvector Score")
 
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
@@ -228,16 +209,6 @@ class Closeness_Ranking(KiaraModule):
                 "type": "network_graph",
                 "doc": "The network graph being queried.",
             },
-            "weighted_closeness": {
-                "type": "boolean",
-                "default": True,
-                "doc": "Boolean to indicate whether to calculate weighted closeness as well as unweighted closeness.",
-            },
-            "weight_column_name": {
-                "type": "string",
-                "default": "",
-                "doc": "The name of the column in the edge table containing data for the 'weight' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weight is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
-            },
             "weight_meaning": {
                 "type": "boolean",
                 "default": True,
@@ -256,8 +227,6 @@ class Closeness_Ranking(KiaraModule):
     def process(self, inputs: ValueMap, outputs: ValueMap):
 
         import networkx as nx
-        import pandas as pd
-
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
@@ -272,6 +241,10 @@ class Closeness_Ranking(KiaraModule):
 
         closeness = nx.closeness_centrality(G)
         nx.set_node_attributes(G, closeness, "Closeness Score")
+
+        if nx.is_weighted(G, weight='weight') == True:
+            weight_closeness = nx.closeness_centrality(G, weight="weight")
+            nx.set_node_attributes(G, weight_closeness, "Weighted Closeness Score")
 
         attribute_network = NetworkGraph.create_from_networkx_graph(G)
 
