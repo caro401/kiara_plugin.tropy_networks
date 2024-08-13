@@ -69,7 +69,7 @@ class Degree_Ranking(KiaraModule):
             degree[node] = G.degree(node)
         nx.set_node_attributes(G, degree, "Degree")
 
-        for edge in G.edges.data:
+        for edge in G.edges.data():
             if 'weight' == True:
                 weight_degree = {}
                 for node in G:
