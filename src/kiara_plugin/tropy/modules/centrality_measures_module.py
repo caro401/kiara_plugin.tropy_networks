@@ -28,11 +28,6 @@ class Degree_Ranking(KiaraModule):
                 "type": "network_graph",
                 "doc": "The network graph being queried.",
             },
-            "weight_column_name": {
-                "type": "string",
-                "default": "",
-                "doc": "The name of the column in the edge table containing data for the 'weight' or 'strength' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weighted degree is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
-            },
         }
 
     def create_outputs_schema(self):
@@ -49,8 +44,6 @@ class Degree_Ranking(KiaraModule):
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
-        wd = inputs.get_value_data("weighted_degree")
-        weight_name = inputs.get_value_data("weight_column_name")
 
         network_data: NetworkGraph = edges.data
 
@@ -110,8 +103,6 @@ class Betweenness_Ranking(KiaraModule):
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
-        wd = inputs.get_value_data("weighted_betweenness")
-        weight_name = inputs.get_value_data("weight_column_name")
         wm = inputs.get_value_data("weight_meaning")
 
         network_data: NetworkGraph = edges.data
@@ -171,8 +162,6 @@ class Eigenvector_Ranking(KiaraModule):
 
         edges = inputs.get_value_obj("network_graph")
         iterations = inputs.get_value_data("iterations")
-        wd = inputs.get_value_data("weighted_eigenvector")
-        weight_name = inputs.get_value_data("weight_column_name")
         wm = inputs.get_value_data("weight_meaning")
 
         network_data: NetworkGraph = edges.data
@@ -230,8 +219,6 @@ class Closeness_Ranking(KiaraModule):
         from kiara_plugin.tropy.models import NetworkGraph
 
         edges = inputs.get_value_obj("network_graph")
-        wd = inputs.get_value_data("weighted_closeness")
-        weight_name = inputs.get_value_data("weight_column_name")
         wm = inputs.get_value_data("weight_meaning")
 
         network_data: NetworkGraph = edges.data
