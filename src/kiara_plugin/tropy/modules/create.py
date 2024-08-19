@@ -268,7 +268,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
             #if merge_strategy != "" and graph_type_str == "directed_multi" or "undirected_multi":
                 #raise KiaraProcessingException("Merging parallel edges is not possible in a multigraph. Choose either directed or undirected graphs if you wish to merge edges.")
             
-            if weight_column != "":
+            if weight_column is not None:
                 if weight_column not in edges_column_names:
                     raise KiaraProcessingException(
                     f"Edges table does not contain weight column '{weight_column}'. Choose one of: {', '.join(edges_column_names)}."
@@ -330,7 +330,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                                 continue
                     weight_dict_table = [[k[0], k[1], v] for k,v in empty.items()]
 
-            if not weight_column and merge_strategy == "sum":
+            if weight_column == None and merge_strategy == "sum":
                 table = (edges_table.arrow_table()).select([edges_source_column_name, edges_target_column_name])
                 assign_weight = [list(items.values()) for items in table.to_pylist()]
                 weight_dict = collections.Counter(assign_weight)
