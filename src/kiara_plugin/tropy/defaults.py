@@ -23,3 +23,10 @@ ALLOWED_GRAPH_TYPE_STRINGS = [
     GraphType.DIRECTED_MULTI.value,
     GraphType.UNDIRECTED_MULTI.value,
 ]
+
+ALLLOWED_PARALLEL_STRINGS = [
+    "sum",
+    "mean",
+    "minimum",
+    "maximum",
+]

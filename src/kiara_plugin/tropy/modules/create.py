@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, Any, Mapping, Union
 
 from pydantic import Field
 
+import collections
+
 from kiara.exceptions import KiaraProcessingException
 from kiara.models.values.value import Value, ValueMap
 from kiara.modules import KiaraModule, ValueMapSchema
@@ -15,6 +17,7 @@ from kiara_plugin.tropy.defaults import (
     DEFAULT_NODE_ID_COLUMN_NAME,
     DEFAULT_SOURCE_COLUMN_NAME,
     DEFAULT_TARGET_COLUMN_NAME,
+    ALLLOWED_PARALLEL_STRINGS,
     GraphType,
 )
 from kiara_plugin.tropy.models import NetworkGraph
@@ -174,6 +177,22 @@ class AssembleGraphFromTablesModule(KiaraModule):
                 "optional": False,
                 "default": DEFAULT_NODE_ID_COLUMN_NAME,
             },
+            "is_weighted": {
+                "type":"boolean",
+                "doc":"Whether the graph contains weights or not. If True, a weight option must be selected, either by identifying a pre-existing weight column, or by selecting an option to deal with parallel edges. If weights need to be added manually, please amend the edges table and restart the assemble graph stage.",
+                "optional":False,
+            },
+            "weight_column": {
+                "type":"string",
+                "doc":"The name of the column containing weight information in the edges table.",
+                "optional":True,
+            },
+            "parallel_edge_strategy": {
+                "type":"string",
+                "type_config":{"allowed_strings": ALLLOWED_PARALLEL_STRINGS},
+                "doc":f"The merge strategy for handling parallel edges. If a weight column has been selected, these weights will be used. If no weight column has been selected, all edges will be assigned a weight of 1 before calculations. Allowed values: {', '.join(ALLOWED_GRAPH_TYPE_STRINGS)}. Selecting this option with a multigraph will raise an error.",
+                "optional":True,
+            }
         }
         return inputs
 
@@ -234,6 +253,99 @@ class AssembleGraphFromTablesModule(KiaraModule):
             raise KiaraProcessingException(
                 f"Edges table does not contain target column '{edges_target_column_name}'. Choose one of: {', '.join(edges_column_names)}."
             )
+        
+        is_weighted = inputs.get_value_data("is_weighted")
+        weight_column = inputs.get_value_data("weight_column")
+        merge_strategy = inputs.get_value_data("parallel_edge_strategy")
+
+        if not is_weighted:
+            raise KiaraProcessingException("Select whether graph is weighted or unweighted.")
+        
+        if is_weighted == True:
+            if not weight_column and not merge_strategy:
+                raise KiaraProcessingException("Graph is weighted but no weights have been selected. Choose either a weight column or a parallel edge strategy.")
+            
+            if not weight_column and merge_strategy == "median" or "minimum" or "maximum":
+                raise KiaraProcessingException("If a weight column has not been selected, this merge strategy will weight all edges as 1. Choose either a weight column or an unweighted graph.")
+            
+            if weight_column not in edges_column_names:
+                raise KiaraProcessingException(
+                    f"Edges table does not contain weight column '{weight_column}'. Choose one of: {', '.join(edges_column_names)}."
+                )
+            
+            if merge_strategy != "" and graph_type_str == "directed_multi" or "undirected_multi":
+                raise KiaraProcessingException("Merging parallel edges is not possible in a multigraph. Choose either directed or undirected graphs if you wish to merge edges.")
+            
+            if weight_column != "":
+                table = edges_table.arrow_table()
+                table = table.select([edges_source_column_name, edges_target_column_name, weight_column])
+                
+                assign_weight = [list(items.values()) for items in table.to_pylist()]
+                def parallel_sum():
+                    empty = {}
+                    for item in assign_weight:
+                        if (item[0], item[1]) not in empty.keys():
+                            empty[(item[0], item[1])] = 0
+                        if (item[0], item[1]) in empty.keys():
+                            empty[(item[0], item[1])] += int(item[2])
+                    return empty
+
+                if merge_strategy == "":
+                    weight_dict_table = table.append_column('weight', table.column(weight_column))
+                    weight_dict_table = [list(items.values()) for items in weight_dict_table.to_pylist()]
+
+                if merge_strategy == "sum":
+                    empty = parallel_sum()
+                    weight_dict_table = [[k[0], k[1], v] for k,v in empty.items()]
+
+                if merge_strategy == "mean":
+                    empty = parallel_sum()
+                    edge_count = [(item[0], item[1]) for item in assign_weight]
+                    weight_dict = collections.Counter(edge_count)
+                    mean_dict = {}
+                    for a, b in weight_dict.items():
+                        for k,v in empty.items():
+                            if a == k:
+                                mean_dict[a] = int(b) / int(v)
+                    weight_dict_table = [[k[0], k[1], v] for k,v in mean_dict.items()]
+
+                if merge_strategy == "minimum":
+                    empty = {}
+                    for item in assign_weight:
+                        if (item[0], item[1]) not in empty.keys():
+                            empty[(item[0], item[1])] = int(item[2])
+                        if (item[0], item[1]) in empty.keys():
+                            if empty[(item[0], item[1])] >= int(item[2]):
+                                empty[(item[0], item[1])] = int(item[2])
+                            else:
+                                continue
+                    weight_dict_table = [[k[0], k[1], v] for k,v in empty.items()]
+
+                if merge_strategy == "maximum":
+                    empty = {}
+                    for item in assign_weight:
+                        if (item[0], item[1]) not in empty.keys():
+                            empty[(item[0], item[1])] = int(item[2])
+                        if (item[0], item[1]) in empty.keys():
+                            if empty[(item[0], item[1])] <= int(item[2]):
+                                empty[(item[0], item[1])] = int(item[2])
+                            else:
+                                continue
+                    weight_dict_table = [[k[0], k[1], v] for k,v in empty.items()]
+
+            if not weight_column and merge_strategy == "sum":
+                table = (edges_table.arrow_table()).select([edges_source_column_name, edges_target_column_name])
+                assign_weight = [list(items.values()) for items in table.to_pylist()]
+                weight_dict = collections.Counter(assign_weight)
+                weight_dict_table = [[k[0], k[1], v] for k,v in weight_dict.items()]
+
+            weight_dict_data =  [[item[0] for item in weight_dict_table], [item[1] for item in weight_dict_table], [item[2] for item in weight_dict_table]]
+            data_arrays = [pa.array(col) for col in weight_dict_data]
+            column_names = [edges_source_column_name, edges_target_column_name, 'weight']
+            weight_dict_table = pa.Table.from_arrays(data_arrays, names=column_names)
+            (edges_table.arrow_table).join(weight_dict_table, list[edges_source_column_name, edges_target_column_name])
+
+            edges_table: KiaraTable = edges_table
 
         network_graph = NetworkGraph.create_from_tables(
             graph_type=graph_type,
@@ -245,66 +357,3 @@ class AssembleGraphFromTablesModule(KiaraModule):
         )
 
         outputs.set_value("network_graph", network_graph)
-
-class AssignNetworkWeight(KiaraModule):
-    """Assigns data for 'strength' or 'weight' of edges. This can either be taken from a named weight column in the edges table, or calculated by aggregrating parallel edges where edge weight is assigned a weight of 1. If this module is not run, no weighted calculations will be run in future modules."""
-
-    _module_type_name = "tropy.assign_network_weight"
-
-    def create_inputs_schema(self):
-        return {
-            "network_graph": {
-                "type": "network_graph",
-                "doc": "The network graph for weights.",
-            },
-            "weight_column_name": {
-                "type": "string",
-                "default": "",
-                "doc": "The name of the column in the edge table containing data for the 'weight' or 'strength' of an edge. If there is a column already named 'weight', this will be automatically selected. If otherwise left empty, weighted degree is calculated by aggregrating parallel edges where edge weight is assigned a weight of 1.",
-            },
-        }
-
-    def create_outputs_schema(self):
-        return {
-            "weighted_network": {
-                "type": "network_graph",
-                "doc": "Updated network graph with weighted edges.",
-            },
-        }
-
-    def process(self, inputs: ValueMap, outputs: ValueMap):
-
-        import networkx as nx
-        import pandas as pd
-
-        from kiara_plugin.tropy.models import NetworkGraph
-
-        edges = inputs.get_value_obj("network_graph")
-        weight_name = inputs.get_value_data("weight_column_name")
-
-        network_data: NetworkGraph = edges.data
-
-        G = network_data.as_networkx_graph()
-
-        if weight_name == "":
-                MG = network_data.as_networkx_graph()
-
-                graph = nx.DiGraph()
-                for u, v, data in MG.edges(data=True):
-                    w = data["weight"] if "weight" in data else 1
-                    if graph.has_edge(u, v):
-                        graph[u][v]["weight"] += w
-                    else:
-                        graph.add_edge(u, v, weight=w)
-
-                edge_weight = nx.get_edge_attributes(graph, "weight")
-                nx.set_edge_attributes(G, edge_weight, "weight")
-
-        if weight_name != "":
-                edge_weight = nx.get_edge_attributes(G, weight_name)
-                for u, v, key in edge_weight:
-                    nx.set_edge_attributes(G, edge_weight, "weight")
-        
-        weighted_network = NetworkGraph.create_from_networkx_graph(G)
-
-        outputs.set_values(weighted_network=weighted_network)
