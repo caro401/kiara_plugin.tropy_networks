@@ -331,7 +331,8 @@ class AssembleGraphFromTablesModule(KiaraModule):
                     weight_dict_table = [[k[0], k[1], v] for k,v in empty.items()]
 
             if weight_column == None and merge_strategy == "sum":
-                table = (edges_table.arrow_table()).select([edges_source_column_name, edges_target_column_name])
+                table = edges_table.arrow_table()
+                table = table.select([edges_source_column_name, edges_target_column_name])
                 assign_weight = [list(items.values()) for items in table.to_pylist()]
                 weight_dict = collections.Counter(assign_weight)
                 weight_dict_table = [[k[0], k[1], v] for k,v in weight_dict.items()]
