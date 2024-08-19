@@ -17,7 +17,7 @@ from kiara_plugin.tropy.defaults import (
     DEFAULT_NODE_ID_COLUMN_NAME,
     DEFAULT_SOURCE_COLUMN_NAME,
     DEFAULT_TARGET_COLUMN_NAME,
-    ALLLOWED_PARALLEL_STRINGS,
+    ALLOWED_PARALLEL_STRINGS,
     GraphType,
 )
 from kiara_plugin.tropy.models import NetworkGraph
@@ -189,8 +189,8 @@ class AssembleGraphFromTablesModule(KiaraModule):
             },
             "parallel_edge_strategy": {
                 "type":"string",
-                "type_config":{"allowed_strings": ALLLOWED_PARALLEL_STRINGS},
-                "doc":f"The merge strategy for handling parallel edges. If a weight column has been selected, these weights will be used. If no weight column has been selected, all edges will be assigned a weight of 1 before calculations. Allowed values: {', '.join(ALLOWED_GRAPH_TYPE_STRINGS)}. Selecting this option with a multigraph will raise an error.",
+                "type_config":{"allowed_strings": ALLOWED_PARALLEL_STRINGS},
+                "doc":f"The merge strategy for handling parallel edges. If a weight column has been selected, these weights will be used. If no weight column has been selected, all edges will be assigned a weight of 1 before calculations. Allowed values: {', '.join(ALLOWED_PARALLEL_STRINGS)}. Selecting this option with a multigraph will raise an error.",
                 "optional":True,
             }
         }
@@ -257,15 +257,12 @@ class AssembleGraphFromTablesModule(KiaraModule):
         is_weighted = inputs.get_value_data("is_weighted")
         weight_column = inputs.get_value_data("weight_column")
         merge_strategy = inputs.get_value_data("parallel_edge_strategy")
-
-        if not is_weighted:
-            raise KiaraProcessingException("Select whether graph is weighted or unweighted.")
         
         if is_weighted == True:
             if not weight_column and not merge_strategy:
                 raise KiaraProcessingException("Graph is weighted but no weights have been selected. Choose either a weight column or a parallel edge strategy.")
             
-            if not weight_column and merge_strategy == "median" or "minimum" or "maximum":
+            if not weight_column and merge_strategy != "sum":
                 raise KiaraProcessingException("If a weight column has not been selected, this merge strategy will weight all edges as 1. Choose either a weight column or an unweighted graph.")
             
             if weight_column not in edges_column_names:

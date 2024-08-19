@@ -24,7 +24,7 @@ ALLOWED_GRAPH_TYPE_STRINGS = [
     GraphType.UNDIRECTED_MULTI.value,
 ]
 
-ALLLOWED_PARALLEL_STRINGS = [
+ALLOWED_PARALLEL_STRINGS = [
     "sum",
     "mean",
     "minimum",
