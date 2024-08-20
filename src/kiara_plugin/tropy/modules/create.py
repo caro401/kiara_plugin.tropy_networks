@@ -288,7 +288,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                             empty[(item[0], item[1])] += int(item[2])
                     return empty
 
-                if merge_strategy == "":
+                if merge_strategy is None:
                     weight_dict_table = table.append_column('weight', table.column(weight_column))
                     weight_dict_table = [list(items.values()) for items in weight_dict_table.to_pylist()]
 
@@ -344,7 +344,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
             weight_dict_table = pa.Table.from_arrays(data_arrays, names=column_names)
             table = (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name])
 
-            edges_table: KiaraTable = table
+            edges_table: KiaraTable = edges_table
 
         network_graph = NetworkGraph.create_from_tables(
             graph_type=graph_type,
