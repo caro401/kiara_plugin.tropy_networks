@@ -341,7 +341,10 @@ class AssembleGraphFromTablesModule(KiaraModule):
             data_arrays = [pa.array(col) for col in weight_dict_data]
             column_names = [edges_source_column_name, edges_target_column_name, 'weight']
             weight_dict_table = pa.Table.from_arrays(data_arrays, names=column_names)
-            table = (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name], left_suffix="_import")
+            if weight_column == 'weight':
+                table = (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name], left_suffix="_original")
+            else:
+                table = (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name])
 
             edges_table: KiaraTable = table
 
