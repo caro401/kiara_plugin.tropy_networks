@@ -310,7 +310,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                     for a, b in weight_dict.items():
                         for k,v in empty.items():
                             if a == k:
-                                mean_dict[a] = int(b) / int(v)
+                                mean_dict[a] = int(v) / int(b)
                     weight_dict_table = [[k[0], k[1], v] for k,v in mean_dict.items()]
 
                 if merge_strategy == "minimum":
