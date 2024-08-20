@@ -343,7 +343,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
             weight_dict_table = pa.Table.from_arrays(data_arrays, names=column_names)
             table = (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name])
 
-            edges_table: KiaraTable = edges_table
+            edges_table: KiaraTable = table
 
         network_graph = NetworkGraph.create_from_tables(
             graph_type=graph_type,
