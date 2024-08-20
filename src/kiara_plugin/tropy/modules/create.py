@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Union
 from pydantic import Field
 
 import collections
+import pyarrow as pa
 
 from kiara.exceptions import KiaraProcessingException
 from kiara.models.values.value import Value, ValueMap
