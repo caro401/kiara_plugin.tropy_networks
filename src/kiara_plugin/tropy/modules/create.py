@@ -269,14 +269,20 @@ class AssembleGraphFromTablesModule(KiaraModule):
             #if merge_strategy is not None and graph_type_str == "directed_multi" or "undirected_multi":
              #   raise KiaraProcessingException("Merging parallel edges is not possible in a multigraph. Choose either directed or undirected graphs if you wish to merge edges.")
             
+            if weight_column == None and merge_strategy == "sum":
+                table = edges_table.arrow_table
+                table = table.select([edges_source_column_name, edges_target_column_name])
+                assign_weight = [(item[0], item[1]) for item in [list(items.values()) for items in table.to_pylist()]]
+                weight_dict = collections.Counter(assign_weight)
+                weight_dict_table = [[k[0], k[1], v] for k,v in weight_dict.items()]
+
             if weight_column is not None:
                 if weight_column not in edges_column_names:
                     raise KiaraProcessingException(
                     f"Edges table does not contain weight column '{weight_column}'. Choose one of: {', '.join(edges_column_names)}."
                 )
 
-                table = edges_table.arrow_table
-                table = table.select([edges_source_column_name, edges_target_column_name, weight_column])
+                table = (edges_table.arrow_table).select([edges_source_column_name, edges_target_column_name, weight_column])
                 
                 assign_weight = [list(items.values()) for items in table.to_pylist()]
                 def parallel_sum():
@@ -331,14 +337,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                                 continue
                     weight_dict_table = [[k[0], k[1], v] for k,v in empty.items()]
 
-            if weight_column == None and merge_strategy == "sum":
-                table = edges_table.arrow_table
-                table = table.select([edges_source_column_name, edges_target_column_name])
-                assign_weight = [(item[0], item[1]) for item in [list(items.values()) for items in table.to_pylist()]]
-                weight_dict = collections.Counter(assign_weight)
-                weight_dict_table = [[k[0], k[1], v] for k,v in weight_dict.items()]
-
-            weight_dict_data =  [[item[0] for item in weight_dict_table], [item[1] for item in weight_dict_table], [item[2] for item in weight_dict_table]]
+            weight_dict_data =  [[item[0] for item in weight_dict_table], [item[1] for item in weight_dict_table], [item[-1] for item in weight_dict_table]]
             data_arrays = [pa.array(col) for col in weight_dict_data]
             column_names = [edges_source_column_name, edges_target_column_name, 'test']
             weight_dict_table = pa.Table.from_arrays(data_arrays, names=column_names)
