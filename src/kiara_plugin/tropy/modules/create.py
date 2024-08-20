@@ -295,7 +295,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                     return empty
 
                 if merge_strategy is None:
-                    weight_dict_table = table.append_column('test', table.column(weight_column))
+                    weight_dict_table = table.append_column('weight', table.column(weight_column))
                     weight_dict_table = [list(items.values()) for items in weight_dict_table.to_pylist()]
 
                 if merge_strategy == "sum":
@@ -339,9 +339,9 @@ class AssembleGraphFromTablesModule(KiaraModule):
 
             weight_dict_data =  [[item[0] for item in weight_dict_table], [item[1] for item in weight_dict_table], [item[-1] for item in weight_dict_table]]
             data_arrays = [pa.array(col) for col in weight_dict_data]
-            column_names = [edges_source_column_name, edges_target_column_name, 'test']
+            column_names = [edges_source_column_name, edges_target_column_name, 'weight']
             weight_dict_table = pa.Table.from_arrays(data_arrays, names=column_names)
-            table = (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name])
+            table = (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name], left_suffix="_import")
 
             edges_table: KiaraTable = table
 
