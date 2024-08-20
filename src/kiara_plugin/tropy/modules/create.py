@@ -275,7 +275,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                     f"Edges table does not contain weight column '{weight_column}'. Choose one of: {', '.join(edges_column_names)}."
                 )
 
-                table = edges_table.arrow_table()
+                table = edges_table.arrow_table
                 table = table.select([edges_source_column_name, edges_target_column_name, weight_column])
                 
                 assign_weight = [list(items.values()) for items in table.to_pylist()]
@@ -342,7 +342,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
             data_arrays = [pa.array(col) for col in weight_dict_data]
             column_names = [edges_source_column_name, edges_target_column_name, 'weight']
             weight_dict_table = pa.Table.from_arrays(data_arrays, names=column_names)
-            (edges_table.arrow_table).join(weight_dict_table, list[edges_source_column_name, edges_target_column_name])
+            (edges_table.arrow_table).join(weight_dict_table, [edges_source_column_name, edges_target_column_name])
 
             edges_table: KiaraTable = edges_table
 
