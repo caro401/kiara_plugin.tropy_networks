@@ -289,7 +289,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                     return empty
 
                 if merge_strategy is None:
-                    weight_dict_table = table.append_column('weight', table.column(weight_column))
+                    weight_dict_table = table.append_column('test', table.column(weight_column))
                     weight_dict_table = [list(items.values()) for items in weight_dict_table.to_pylist()]
 
                 if merge_strategy == "sum":
