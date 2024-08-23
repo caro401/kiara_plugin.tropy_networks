@@ -64,9 +64,9 @@ class Degree_Ranking(KiaraModule):
 
         attribute_network = NetworkGraph.create_from_networkx_graph(
             G,
-            source_column_name=G.source_column_name,
-            target_column_name=G.target_column_name,
-            node_id_column_name=G.node_id_column_name,
+            source_column_name=network_data.source_column_name,
+            target_column_name=network_data.target_column_name,
+            node_id_column_name=network_data.node_id_column_name,
         )
 
         outputs.set_values(centrality_network=attribute_network)
