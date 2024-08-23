@@ -62,7 +62,12 @@ class Degree_Ranking(KiaraModule):
                 nx.set_node_attributes(G, weight_degree, "Weighted Degree")
             
 
-        attribute_network = NetworkGraph.create_from_networkx_graph(G)
+        attribute_network = NetworkGraph.create_from_networkx_graph(
+            G,
+            source_column_name=G.source_column_name,
+            target_column_name=G.target_column_name,
+            node_id_column_name=G.node_id_column_name,
+        )
 
         outputs.set_values(centrality_network=attribute_network)
 

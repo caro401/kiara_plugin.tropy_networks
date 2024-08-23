@@ -267,7 +267,7 @@ class AssembleGraphFromTablesModule(KiaraModule):
                 raise KiaraProcessingException("If a weight column has not been selected, this merge strategy will weight all edges as 1. Choose either a weight column or an unweighted graph.")
             
             #if merge_strategy is not None and graph_type_str == "directed_multi" or "undirected_multi":
-             #   raise KiaraProcessingException("Merging parallel edges is not possible in a multigraph. Choose either directed or undirected graphs if you wish to merge edges.")
+            #    raise KiaraProcessingException("Merging parallel edges is not possible in a multigraph. Choose either directed or undirected graphs if you wish to merge edges.")
             
             if weight_column == None and merge_strategy == "sum":
                 table = edges_table.arrow_table
