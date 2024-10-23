@@ -8,6 +8,8 @@ other type of models -- that is attached to data, as well as *kiara* modules.
 Metadata models must be a sub-class of [kiara.metadata.MetadataModel][kiara.metadata.MetadataModel]. Other models usually
 sub-class a pydantic BaseModel or implement custom base classes.
 """
+
+import uuid
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,6 +25,7 @@ from pydantic import BaseModel, Field
 from kiara.exceptions import KiaraException
 from kiara.models.values.value import Value
 from kiara.models.values.value_metadata import ValueMetadata
+from kiara.utils import log_message
 from kiara_plugin.tabular.models.table import KiaraTable
 from kiara_plugin.tabular.models.tables import KiaraTables
 from kiara_plugin.tropy.defaults import (
@@ -159,9 +162,28 @@ class NetworkGraph(KiaraTables):
         else:
             raise KiaraException(f"Invalid graph type: {type(graph)}")
 
-        edges_df = nx.to_pandas_edgelist(
-            graph, source=source_column_name, target=target_column_name
-        )
+        temp_source = str(uuid.uuid4())
+        temp_target = str(uuid.uuid4())
+
+        edges_df = nx.to_pandas_edgelist(graph, source=temp_source, target=temp_target)
+        if source_column_name in edges_df.columns:
+            # remove the column
+            log_message(
+                "graph.create.drop_column",
+                column=source_column_name,
+                reason="Source column name specified by user.",
+            )
+            edges_df = edges_df.drop(source_column_name, axis=1)
+            edges_df = edges_df.rename(columns={temp_source: source_column_name})
+        if target_column_name in edges_df.columns:
+            # remove the column
+            log_message(
+                "graph.create.drop_column",
+                column=target_column_name,
+                reason="Target column name specified by user.",
+            )
+            edges_df = edges_df.drop(target_column_name, axis=1)
+            edges_df = edges_df.rename(columns={temp_target: target_column_name})
         edges_table = KiaraTable.create_table(edges_df)
 
         node_dict = {
@@ -187,8 +209,9 @@ class NetworkGraph(KiaraTables):
             graph_type=graph_type,
             edges_table=edges_table,
             nodes_table=nodes_table,
-            source_column_name="source",
-            target_column_name="target",
+            source_column_name=source_column_name,
+            target_column_name=target_column_name,
+            node_id_column_name=node_id_column_name,
         )
 
     source_column_name: str = Field(

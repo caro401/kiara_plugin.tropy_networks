@@ -122,7 +122,11 @@ class Betweenness_Ranking(KiaraModule):
             weight_betweenness = nx.betweenness_centrality(G, weight="weight")
             nx.set_node_attributes(G, weight_betweenness, "Weighted Betweenness Score")
 
-        attribute_network = NetworkGraph.create_from_networkx_graph(G)
+        attribute_network = NetworkGraph.create_from_networkx_graph(
+            G,
+            source_column_name=network_data.source_column_name,
+            target_column_name=network_data.target_column_name,
+            node_id_column_name=network_data.node_id_column_name,)
 
         outputs.set_values(centrality_network=attribute_network)
 
@@ -183,7 +187,11 @@ class Eigenvector_Ranking(KiaraModule):
             )
             nx.set_node_attributes(G, weight_eigenvector, "Weighted Eigenvector Score")
 
-        attribute_network = NetworkGraph.create_from_networkx_graph(G)
+        attribute_network = NetworkGraph.create_from_networkx_graph(
+            G,
+            source_column_name=network_data.source_column_name,
+            target_column_name=network_data.target_column_name,
+            node_id_column_name=network_data.node_id_column_name,)
 
         outputs.set_values(centrality_network=attribute_network)
 
@@ -238,6 +246,10 @@ class Closeness_Ranking(KiaraModule):
             weight_closeness = nx.closeness_centrality(G, weight="weight")
             nx.set_node_attributes(G, weight_closeness, "Weighted Closeness Score")
 
-        attribute_network = NetworkGraph.create_from_networkx_graph(G)
+        attribute_network = NetworkGraph.create_from_networkx_graph(
+            G,
+            source_column_name=network_data.source_column_name,
+            target_column_name=network_data.target_column_name,
+            node_id_column_name=network_data.node_id_column_name,)
 
         outputs.set_values(centrality_network=attribute_network)
