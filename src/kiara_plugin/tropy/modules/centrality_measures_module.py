@@ -13,14 +13,15 @@ KIARA_METADATA = {
 
 
 class Degree_Ranking(KiaraModule):
-    """Creates an ordered table with the rank and raw score for degree and weighted degree.
-    Unweighted degree centrality uses an undirected graph and measures the number of independent connections each node has.
-    Weighted degree centrality uses a directed graph and measures the total number of connections or weight attached to a node.
+    """Creates an updated network graph with degree scores for each node. If the graph is weighted, it will also calculate weighted degree.
+    Degree calculates the number of connections a node has in the graph. If the graph is undirected, each link is counted as one edge.
+    If the graph is directed, a connection between node A and node B counts as two edges if the connection is reciprocal.
+    If the graph is weighted, weighted degree is calculated using the weight column selected when assembling the graph.
 
     Uses networkx degree.
     https://networkx.org/documentation/stable/reference/generated/networkx.classes.function.degree.html"""
 
-    _module_type_name = "tropy.create.degree_rank_list"
+    _module_type_name = "tropy.calculate.degree_score"
 
     def create_inputs_schema(self):
         return {
@@ -73,13 +74,13 @@ class Degree_Ranking(KiaraModule):
 
 
 class Betweenness_Ranking(KiaraModule):
-    """Creates an ordered table with the rank and raw score for betweenness centrality.
+    """Creates an updated network graph with betweenness centrality scores for each node. If the graph is weighted, it will also calculate weighted betweenness.
     Betweenness centrality measures the percentage of all shortest paths that a node appears on, therefore measuring the likeliness that a node may act as a connector or 'intermediary'.
 
-    Uses a directed graph and networkx.betweenness_centrality()
+    Uses networkx.betweenness_centrality()
     https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.betweenness_centrality.html#networkx.algorithms.centrality.betweenness_centrality"""
 
-    _module_type_name = "tropy.create.betweenness_rank_list"
+    _module_type_name = "tropy.calculate.betweenness_score"
 
     def create_inputs_schema(self):
         return {
@@ -120,6 +121,9 @@ class Betweenness_Ranking(KiaraModule):
 
         if nx.is_weighted(G, weight='weight') == True:
             weight_betweenness = nx.betweenness_centrality(G, weight="weight")
+            if wm == True:
+                for k,v in weight_betweenness.items():
+                    weight_betweenness[k] == 1 / v
             nx.set_node_attributes(G, weight_betweenness, "Weighted Betweenness Score")
 
         attribute_network = NetworkGraph.create_from_networkx_graph(
@@ -132,13 +136,13 @@ class Betweenness_Ranking(KiaraModule):
 
 
 class Eigenvector_Ranking(KiaraModule):
-    """Creates an ordered table with the rank and raw score for betweenness centrality.
+    """Creates an updated network graph with eigenvector centrality scores for each node. If the graph is weighted, it will also calculate weighted eigenvector.
     Eigenvector centrality measures the extent to which a node is connected to other nodes of importance or influence.
 
-    Uses an undirected graph networkx.eigenvector_centrality()
+    Uses networkx.eigenvector_centrality()
     https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.eigenvector_centrality.html#networkx.algorithms.centrality.eigenvector_centrality"""
 
-    _module_type_name = "tropy.create.eigenvector_rank_list"
+    _module_type_name = "tropy.calculate.eigenvector_score"
 
     def create_inputs_schema(self):
         return {
@@ -197,13 +201,13 @@ class Eigenvector_Ranking(KiaraModule):
 
 
 class Closeness_Ranking(KiaraModule):
-    """Creates an ordered table with the rank and raw score for closeness centrality.
+    """Creates an updated network graph with closeness centrality scores for each node. If the graph is weighted, it will also calculate weighted closeness.
     Closeness centrality measures the average shortest distance path between a node and all reachable nodes in the network.
 
-    Uses a directed graph and networkx.closeness_centrality()
+    Uses networkx.closeness_centrality()
     https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.centrality.closeness_centrality.html#networkx.algorithms.centrality.closeness_centrality"""
 
-    _module_type_name = "tropy.create.closeness_rank_list"
+    _module_type_name = "tropy.calculate.closeness_score"
 
     def create_inputs_schema(self):
         return {
