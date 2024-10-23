@@ -123,7 +123,8 @@ class Betweenness_Ranking(KiaraModule):
             weight_betweenness = nx.betweenness_centrality(G, weight="weight")
             if wm == True:
                 for k,v in weight_betweenness.items():
-                    weight_betweenness[k] == 1 / v
+                    if v != 0:
+                        weight_betweenness[k] == 1 / v
             nx.set_node_attributes(G, weight_betweenness, "Weighted Betweenness Score")
 
         attribute_network = NetworkGraph.create_from_networkx_graph(
