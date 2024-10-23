@@ -190,6 +190,10 @@ class Eigenvector_Ranking(KiaraModule):
             weight_eigenvector = nx.eigenvector_centrality(
                 G, weight="weight", max_iter=100000
             )
+            if wm == False:
+                for k,v in weight_eigenvector.items():
+                    if v != 0:
+                        weight_eigenvector[k] == 1 / v
             nx.set_node_attributes(G, weight_eigenvector, "Weighted Eigenvector Score")
 
         attribute_network = NetworkGraph.create_from_networkx_graph(
@@ -249,6 +253,10 @@ class Closeness_Ranking(KiaraModule):
 
         if nx.is_weighted(G, weight='weight') == True:
             weight_closeness = nx.closeness_centrality(G, weight="weight")
+            if wm == True:
+                for k,v in weight_closeness.items():
+                    if v != 0:
+                        weight_closeness[k] == 1 / v
             nx.set_node_attributes(G, weight_closeness, "Weighted Closeness Score")
 
         attribute_network = NetworkGraph.create_from_networkx_graph(
